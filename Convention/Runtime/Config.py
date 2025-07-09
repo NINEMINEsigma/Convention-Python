@@ -7,6 +7,7 @@ import                     traceback
 import                     datetime
 import                     platform
 import                     time
+import                     os
 from colorama       import Fore as ConsoleFrontColor, Back as ConsoleBackgroundColor, Style as ConsoleStyle
 
 def format_traceback_info(char:str='\n', back:int=1):

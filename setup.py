@@ -20,7 +20,8 @@ setup(
         "colorama",
         "pydantic",
         "python-docx",
-        "Pillow"
+        "Pillow",
+        "pydub"
     ],
     exclude_package_data={"": ["*.meta"]},
 )

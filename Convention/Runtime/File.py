@@ -16,24 +16,24 @@ from typing             import *
 from pathlib            import Path
 try:
     from pydub              import AudioSegment
-except ImportError:
-    ImportingThrow("File", ["pydub"])
+except ImportError as e:
+    ImportingThrow(e, "File", ["pydub"])
 try:
     from PIL                import Image, ImageFile
-except ImportError:
-    ImportingThrow("File", ["Pillow"])
+except ImportError as e:
+    ImportingThrow(e, "File", ["Pillow"])
 try:
     from docx               import Document
     from docx.document      import Document as DocumentObject
-except ImportError:
-    ImportingThrow("File", ["python-docx"])
+except ImportError as e:
+    ImportingThrow(e, "File", ["python-docx"])
 
 from .String            import Bytes2String
 
-def get_extension_name(file:str):
+def GetExtensionName(file:str):
         return os.path.splitext(file)[1][1:]
 
-def get_base_filename(file:str):
+def GetBaseFilename(file:str):
     return os.path.basename(file)
 
 dir_name_type = str
@@ -67,15 +67,8 @@ class PermissionError(FileOperationError):
     """权限操作异常"""
     pass
 
-try:
-    from pydantic import BaseModel, GetCoreSchemaHandler
-    from pydantic_core import core_schema
-except ImportError:
-    class BaseModel:
-        def __init__(self,*args,**kwargs)->None:
-            pass
-    type GetCoreSchemaHandler = Any
-    type core_schema = Any
+from pydantic import BaseModel, GetCoreSchemaHandler
+from pydantic_core import core_schema
 
 class ToolFile(BaseModel):
     OriginFullPath:str
@@ -101,42 +94,20 @@ class ToolFile(BaseModel):
         ):
         self.OriginFullPath = filePath if isinstance(filePath, str) else filePath.OriginFullPath
     def __del__(self):
-        self.close()
+        pass
     def __str__(self):
         return self.GetFullPath()
-    def __setitem__(self, key:str, value):
-        self.datas[key] = value
-    def __getitem__(self, key:str):
-        if key not in self.datas:
-            self.datas[key] = None
-        return self.datas[key]
-    def __contains__(self, key:str):
-        return key in self.datas
-    def __delitem__(self, key:str):
-        del self.datas[key]
-    def __iter__(self):
-        return iter(self.datas)
-    def __len__(self):
-        return len(self.datas)
-    @override
     def __enter__(self):
-        if self.is_open():
-            return self
-        if self.exists() and self.is_file():
-            self.load()
         return self
-    @override
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.close()
-        return super().__exit__(exc_type, exc_val, exc_tb)
+        return True
 
     def __or__(self, other):
         if other is None:
-            return ToolFile(self.GetFullPath() if self.is_dir() else self.GetFullPath()+"\\")
+            return ToolFile(self.GetFullPath() if self.IsDir() else self.GetFullPath()+"\\")
         else:
-            return ToolFile(os.path.join(self.GetFullPath(), UnWrapper(other)))
+            return ToolFile(os.path.join(self.GetFullPath(), str(other)))
     def __idiv__(self, other):
-        self.close()
         temp = self.__or__(other)
         self.OriginFullPath = temp.GetFullPath()
 
@@ -168,213 +139,131 @@ class ToolFile(BaseModel):
         return os.path.normpath(self_path) == os.path.normpath(other_path)
         
 
-    def to_path(self):
+    def ToPath(self):
         return Path(self.OriginFullPath)
     def __Path__(self):
         return Path(self.OriginFullPath)
 
-    def write(self, data:Union[str, bytes]):
-        self.__file.write(data)
-
-    def create(self):
-        if self.exists() == False:
-            if self.is_dir():
-                if os.path.exists(self.get_dir()):
+    def Create(self):
+        if self.Exists() == False:
+            if self.IsDir():
+                if os.path.exists(self.GetDir()):
                     os.makedirs(self.OriginFullPath)
                 else:
                     raise FileNotFoundError(f"{self.OriginFullPath} cannt create, because its parent path is not exist")
             else:
-                self.open('w')
-                self.close()
+                with open(self.OriginFullPath, 'w') as f:
+                    f.write('')
         return self
-    def exists(self):
+    def Exists(self):
         return os.path.exists(self.OriginFullPath)
-    def remove(self):
-        self.close()
-        if self.exists():
-            if self.is_dir():
+    def Remove(self):
+        if self.Exists():
+            if self.IsDir():
                 shutil.rmtree(self.OriginFullPath)
             else:
                 os.remove(self.OriginFullPath)
         return self
-    def copy(self, to_path:Optional[Union[Self, str]]=None):
-        if to_path is None:
+    def Copy(self, targetPath:Optional[Union[Self, str]]=None):
+        if targetPath is None:
             return ToolFile(self.OriginFullPath)
-        if self.exists() is False:
+        if self.Exists() is False:
             raise FileNotFoundError("file not found")
-        self.close()
-        target_file = ToolFile(UnWrapper(to_path))
-        if target_file.is_dir():
+        target_file = ToolFile(str(targetPath))
+        if target_file.IsDir():
             target_file = target_file|self.GetFilename()
-        shutil.copy(self.OriginFullPath, UnWrapper(target_file))
+        shutil.copy(self.OriginFullPath, str(target_file))
         return target_file
-    def move(self, to_path:Union[Self, str]):
-        if self.exists() is False:
+    def Move(self, targetPath:Union[Self, str]):
+        if self.Exists() is False:
             raise FileNotFoundError("file not found")
-        self.close()
-        target_file = ToolFile(UnWrapper(to_path))
-        if target_file.is_dir():
+        target_file = ToolFile(str(targetPath))
+        if target_file.IsDir():
             target_file = target_file|self.GetFilename()
-        shutil.move(self.OriginFullPath, UnWrapper(target_file))
+        shutil.move(self.OriginFullPath, str(target_file))
         self.OriginFullPath = target_file.OriginFullPath
         return self
-    def rename(self, newpath:Union[Self, str]):
-        if self.exists() is False:
+    def Rename(self, newpath:Union[Self, str]):
+        if self.Exists() is False:
             raise FileNotFoundError("file not found")
-        self.close()
-        newpath:str = UnWrapper(newpath)
+        newpath = str(newpath)
         if '\\' in newpath or '/' in newpath:
-            newpath = get_base_filename(newpath)
-        new_current_path = os.path.join(self.get_dir(), newpath)
+            newpath = GetBaseFilename(newpath)
+        new_current_path = os.path.join(self.GetDir(), newpath)
         os.rename(self.OriginFullPath, new_current_path)
         self.OriginFullPath = new_current_path
         return self
 
-    def refresh(self):
-        self.load()
-        return self
-    def open(self, mode='r', is_refresh=False, encoding:str='utf-8', *args, **kwargs):
-        self.close()
-        if 'b' in mode:
-            self.__file = open(self.OriginFullPath, mode, *args, **kwargs)
+    def LoadAsJson(self) -> Any:
+        if self.Exists() is False or 'w' in self.OriginFullPath:
+            with open(self.OriginFullPath, 'r') as f:
+                json_data = json.load(f)
+                return json_data
         else:
-            self.__file = open(self.OriginFullPath, mode, encoding=encoding, *args, **kwargs)
-        if is_refresh:
-            self.refresh()
-        return self.__file
-    def close(self):
-        if self.__file:
-            self.__file.close()
-        if self.__datas_lit_key in self.datas:
-            self.datas[self.__datas_lit_key] = None
-        return self.__file
-    def is_open(self)->bool:
-        return self.__file is not None
+            raise FileNotFoundError("file not found")
 
-    def load(self):
-        if self.OriginFullPath is None:
-            if os.path.exists(temp_tool_file_path_name):
-                self.data = pickle.load(open(temp_tool_file_path_name, 'rb'))
-                return self.data
-            else:
-                raise FileNotFoundError(f"{self.OriginFullPath} not found, but this ToolFile's target is None")
-        elif self.is_dir():
-            self.__file = open(os.path.join(self.GetFullPath(), temp_tool_file_path_name), 'rb')
-            self.data = pickle.load(self.__file)
-            return self.data
-        suffix = self.get_extension()
-        if suffix == 'json':
-            self.load_as_json()
-        elif suffix == 'csv':
-            self.load_as_csv()
-        elif suffix == 'xml':
-            self.load_as_xml()
-        elif suffix == 'xlsx' or suffix == 'xls':
-            self.load_as_excel()
-        elif suffix in text_readable_file_type:
-            self.load_as_text()
-        elif suffix == 'docx' or suffix == 'doc':
-            self.load_as_docx()
-        elif suffix in audio_file_type:
-            self.load_as_audio()
-        elif is_image_file(self.OriginFullPath):
-            self.load_as_image()
-        elif is_binary_file(self.OriginFullPath):
-            self.load_as_binary()
+    def LoadAsCsv(self) -> pd.DataFrame:
+        if self.Exists() is False or 'w' in self.OriginFullPath:
+            with open(self.OriginFullPath, 'r') as f:
+                return pd.read_csv(f)
         else:
-            self.load_as_unknown(suffix)
-        return self.data
-    def load_as_json(self) -> pd.DataFrame:
-        if self.is_open() is False or 'w' in self.__file.mode:
-            self.open('r')
-        json_data = json.load(self.__file)
-        #try:
-        #    from pydantic import BaseModel
-        #    if "__type" in json_data and "pydantic.BaseModel" in json_data["__type"]:
-        #        del json_data["__type"]
-        #        json_data = BaseModel.model_validate(json_data)
-        #except:
-        #    pass
-        self.data = json_data
-        return self.data
-    def load_as_csv(self) -> pd.DataFrame:
-        if self.is_open() is False or 'w' in self.__file.mode:
-            self.open('r')
-        self.data = pd.read_csv(self.__file)
-        return self.data
-    def load_as_xml(self) -> pd.DataFrame:
-        if self.is_open() is False or 'w' in self.__file.mode:
-            self.open('r')
-        self.data = pd.read_xml(self.__file)
-        return self.data
-    def load_as_dataframe(self) -> pd.DataFrame:
-        if self.is_open() is False or 'w' in self.__file.mode:
-            self.open('r')
-        self.data = pd.read_csv(self.__file)
-        return self.data
-    def load_as_excel(self) -> pd.DataFrame:
-        if self.is_open() is False or 'w' in self.__file.mode:
-            self.open('r')
-        self.data = pd.read_excel(self.__file)
-        return self.data
-    def load_as_binary(self) -> bytes:
-        if self.is_open() is False or 'w' in self.__file.mode:
-            self.open('rb')
-        self.data = self.__file.read()
-        return self.data
-    def load_as_text(self) -> str:
-        if self.is_open() is False or 'w' in self.__file.mode:
-            self.open('r')
-        self.data = list_byte_to_string(self.__file.readlines())
-        return self.data
-    def load_as_wav(self):
-        self.data = AudioSegment.from_wav(self.OriginFullPath)
-        return self.data
-    def load_as_audio(self):
-        self.data = AudioSegment.from_file(self.OriginFullPath)
-        return self.data
-    def load_as_image(self) -> ImageFile.ImageFile:
-        self.data = Image.open(self.OriginFullPath)
-        return self.data
-    def load_as_docx(self) -> DocumentObject:
-        self.data = Document(self.OriginFullPath)
-        return self.data
-    def load_as_unknown(self, suffix:str) -> Any:
-        return self.load_as_text()
-    def load_as_model(self, model:type[BaseModel]) -> BaseModel:
-        return model.model_validate(self.load_as_json())
+            raise FileNotFoundError("file not found")
+    def LoadAsXml(self) -> pd.DataFrame:
+        if self.Exists() is False or 'w' in self.OriginFullPath:
+            with open(self.OriginFullPath, 'r') as f:
+                return pd.read_xml(f)
+        else:
+            raise FileNotFoundError("file not found")
+    def LoadAsDataframe(self) -> pd.DataFrame:
+        if self.Exists() is False or 'w' in self.OriginFullPath:
+            with open(self.OriginFullPath, 'r') as f:
+                return pd.read_csv(f)
+        else:
+            raise FileNotFoundError("file not found")
+    def LoadAsExcel(self) -> pd.DataFrame:
+        if self.Exists() is False or 'w' in self.OriginFullPath:
+            with open(self.OriginFullPath, 'r') as f:
+                return pd.read_excel(f)
+        else:
+            raise FileNotFoundError("file not found")
+    def LoadAsBinary(self) -> bytes:
+        if self.Exists() is False or 'w' in self.OriginFullPath:
+            with open(self.OriginFullPath, 'rb') as f:
+                return f.read()
+        else:
+            raise FileNotFoundError("file not found")
+    def LoadAsText(self) -> str:
+        if self.Exists() is False or 'w' in self.OriginFullPath:
+            with open(self.OriginFullPath, 'r') as f:
+                return f.read()
+        else:
+            raise FileNotFoundError("file not found")
+    def LoadAsWav(self):
+        if self.Exists() is False or 'w' in self.OriginFullPath:
+            return AudioSegment.from_wav(self.OriginFullPath)
+        else:
+            raise FileNotFoundError("file not found")
+    def LoadAsAudio(self):
+        if self.Exists() is False or 'w' in self.OriginFullPath:
+            return AudioSegment.from_file(self.OriginFullPath)
+        else:
+            raise FileNotFoundError("file not found")
+    def LoadAsImage(self) -> ImageFile.ImageFile:
+        if self.Exists() is False or 'w' in self.OriginFullPath:
+            return Image.open(self.OriginFullPath)
+        else:
+            raise FileNotFoundError("file not found")
+    def LoadAsDocx(self) -> DocumentObject:
+        if self.Exists() is False or 'w' in self.OriginFullPath:
+            return Document(self.OriginFullPath)
+        else:
+            raise FileNotFoundError("file not found")
+    def LoadAsUnknown(self, suffix:str) -> Any:
+        return self.LoadAsText()
+    def LoadAsModel(self, model:type[BaseModel]) -> BaseModel:
+        return model.model_validate(self.LoadAsJson())
 
-    def save(self, path:Optional[str]=None):
-        if path is None and self.OriginFullPath is None:
-            raise Exception('No file path specified')
-        elif path is None and self.is_dir():
-            with open(os.path.join(self.OriginFullPath, temp_tool_file_path_name),'wb') as temp_file:
-                pickle.dump(self.data, temp_file)
-            return self
-        suffix = self.get_extension(path)
-        if suffix == 'json':
-            self.save_as_json(path)
-        elif suffix == 'csv':
-            self.save_as_csv(path)
-        elif suffix == 'xml':
-            self.save_as_xml(path)
-        elif suffix == 'xlsx' or suffix == 'xls':
-            self.save_as_excel(path)
-        elif suffix in text_readable_file_type:
-            self.save_as_text(path)
-        elif suffix == 'docx':
-            self.save_as_docx(path)
-        elif suffix in audio_file_type:
-            self.save_as_audio(path, suffix)
-        elif is_binary_file(self.OriginFullPath):
-            self.save_as_binary(path)
-        elif is_image_file(self.OriginFullPath):
-            self.save_as_image(path)
-        else:
-            self.save_as_unknown(path)
-        return self
-    def save_as_json(self, path:Optional[str]=None):
-        json_data = self.data
+    def SaveAsJson(self, json_data):
         try:
             from pydantic import BaseModel
             if isinstance(json_data, BaseModel):
@@ -382,89 +271,51 @@ class ToolFile(BaseModel):
                 json_data["__type"] = f"{self.data.__class__.__name__}, pydantic.BaseModel"
         except:
             pass
-        path = path if path is not None else self.OriginFullPath
-        self.close()
-        with open(path, 'w', encoding='utf-8') as f:
+        with open(self.OriginFullPath, 'w', encoding='utf-8') as f:
             json.dump(json_data, f, indent=4)
         return self
-    def save_as_csv(self, path:Optional[str]=None):
-        path = path if path is not None else self.OriginFullPath
-        self.data.to_csv(path)
+    def SaveAsCsv(self, csv_data:pd.DataFrame):
+        csv_data.to_csv(self.OriginFullPath)
         return self
-    def save_as_xml(self, path:Optional[str]=None):
-        path = path if path is not None else self.OriginFullPath
-        self.data.to_xml(path)
+    def SaveAsXml(self, xml_data:pd.DataFrame):
+        xml_data.to_xml(self.OriginFullPath)
         return self
-    def save_as_dataframe(self, path:Optional[str]=None):
-        path = path if path is not None else self.OriginFullPath
-        self.data.to_csv(path)
+    def SaveAsDataframe(self, dataframe_data:pd.DataFrame):
+        dataframe_data.to_csv(self.OriginFullPath)
         return self
-    def save_as_excel(self, path:Optional[str]=None):
-        path = path if path is not None else self.OriginFullPath
-        self.data.to_excel(path, index=False)
+    def SaveAsExcel(self, excel_data:pd.DataFrame):
+        excel_data.to_excel(self.OriginFullPath, index=False)
         return self
-    def save_as_binary(self, path:Optional[str]=None):
-        if path is not None:
-            with open(path, 'wb') as f:
-                f.write(self.data)
-                f.flush()
-        else:
-            if self.is_open() is False or 'r' in self.__file.mode:
-                self.open('wb')
-            self.__file.write(self.data)
-            self.__file.flush()
+    def SaveAsBinary(self, binary_data:bytes):
+        with open(self.OriginFullPath, 'wb') as f:
+            f.write(binary_data)
         return self
-    def save_as_text(self, path:Optional[str]=None):
-        if path is not None:
-            with open(path, 'w') as f:
-                f.writelines(self.data)
-                f.flush()
-        else:
-            if self.is_open() is False or 'r' in self.__file.mode:
-                self.open('w')
-            self.__file.writelines(self.data)
-            self.__file.flush()
+    def SaveAsText(self, text_data:str):
+        with open(self.OriginFullPath, 'w') as f:
+            f.writelines(text_data)
         return self
-    def save_as_audio(self, path:Optional[str]=None):
-        path = path if path is not None else self.OriginFullPath
-        self.data.export(path, format=self.get_extension(path))
+    def SaveAsAudio(self, audio_data:AudioSegment):
+        audio_data.export(self.OriginFullPath, format=self.get_extension(self.OriginFullPath))
         return self
-    def save_as_image(self, path:Optional[str]=None):
-        path = path if path is not None else self.OriginFullPath
-        self.data.save(path)
+    def SaveAsImage(self, image_data:ImageFile.ImageFile):
+        image_data.save(self.OriginFullPath)
         return self
-    def save_as_docx(self, path:Optional[str]=None):
-        if self.data is str:
-            self.data = Document()
-            table = self.data.add_table(rows=1, cols=1)
-            table.cell(0, 0).text = self.data
-        path = path if path is not None else self.OriginFullPath
-        self.data.save(path)
+    def SaveAsDocx(self, docx_data:DocumentObject):
+        docx_data.save(self.OriginFullPath)
         return self
-    def save_as_unknown(self, path:Optional[str]=None):
-        self.save_as_text(path)
-    def save_as_model(self, model:type[BaseModel], path:Optional[str]=None):
-        self.save_as_json(path)
+    def SaveAsUnknown(self, unknown_data:Any):
+        self.SaveAsBinary(unknown_data)
+    def SaveAsModel(self, model:type[BaseModel]):
+        self.SaveAsJson(model)
 
-    def get_size(self) -> int:
+    def GetSize(self) -> int:
         '''
         return:
             return size of directory
         '''
         return os.path.getsize(self.OriginFullPath)
-    def get_data_type(self) -> type:
-        return type(self.data)
-    def has_data_type_is(self, types:Union[type, Sequence[type]]) -> bool:
-        if isinstance(types, Sequence) is False:
-            return self.get_data_type() == types
-        return self.get_data_type() in types
-    def get_extension(self, path:str=None):
-        if self.is_dir() and path is None:
-            raise Exception("Cannot get extension of a directory")
-        path = path if path is not None else self.OriginFullPath
-        if path is None:
-            raise Exception("Cannot get extension without target path")
-        return get_extension_name(path)
+    def GetExtension(self):
+        return GetExtensionName(self.OriginFullPath)
     def GetFullPath(self) -> str:
         return self.OriginFullPath
     def GetFilename(self, is_without_extension = False):
@@ -473,90 +324,85 @@ class ToolFile(BaseModel):
         if target path is a directory, it return top directory name
         '''
         if is_without_extension and '.' in self.OriginFullPath:
-            return get_base_filename(self.OriginFullPath)[:-(len(self.get_extension())+1)]
+            return GetBaseFilename(self.OriginFullPath)[:-(len(self.GetExtension())+1)]
         elif self.OriginFullPath[-1] == '/' or self.OriginFullPath[-1] == '\\':
-            return get_base_filename(self.OriginFullPath[:-1])
+            return GetBaseFilename(self.OriginFullPath[:-1])
         else:
-            return get_base_filename(self.OriginFullPath)
-    def get_dir(self):
+            return GetBaseFilename(self.OriginFullPath)
+    def GetDir(self):
         return os.path.dirname(self.OriginFullPath)
-    def get_dir_tool_file(self):
-        return ToolFile(self.get_dir())
-    def get_current_dir_name(self):
+    def GetDirToolFile(self):
+        return ToolFile(self.GetDir())
+    def GetCurrentDirName(self):
         return os.path.dirname(self.OriginFullPath)
 
-    def is_dir(self):
+    def IsDir(self):
         if self.OriginFullPath[-1] == '\\' or self.GetFullPath()[-1] == '/':
             return True
         else:
             return os.path.isdir(self.OriginFullPath)
-    def is_file(self):
+    def IsFile(self):
         return os.path.isfile(self.OriginFullPath)
-    def is_binary_file(self):
-        return is_binary_file(self.__file)
-    def is_image(self):
-         return is_image_file(self.OriginFullPath)
 
-    def try_create_parent_path(self):
+    def TryCreateParentPath(self):
         dir_path = os.path.dirname(self.OriginFullPath)
         if dir_path == '':
             return self
         if not os.path.exists(dir_path):
             os.makedirs(dir_path)
         return self
-    def dir_iter(self):
+    def DirIter(self):
         return os.listdir(self.OriginFullPath)
-    def dir_tool_file_iter(self):
+    def DirToolFileIter(self):
         result = [self]
         result.clear()
         for file in os.listdir(self.OriginFullPath):
             result.append(self|file)
         return result
-    def back_to_parent_dir(self):
-        self.close()
-        self.OriginFullPath = self.get_dir()
+    def BackToParentDir(self):
+        self.OriginFullPath = self.GetDir()
         return self
-    def get_parent_dir(self):
-        return ToolFile(self.get_dir())
-    def dir_count(self, ignore_folder:bool = True):
-        iter    = self.dir_iter()
+    def GetParentDir(self):
+        return ToolFile(self.GetDir())
+    def DirCount(self, ignore_folder:bool = True):
+        iter    = self.DirIter()
         result  = 0
         for content in iter:
             if ignore_folder and os.path.isdir(os.path.join(self.OriginFullPath, content)):
                 continue
             result += 1
         return result
-    def dir_clear(self):
-        for file in self.dir_tool_file_iter():
-            file.remove()
+    def DirClear(self):
+        for file in self.DirToolFileIter():
+            file.Remove()
         return self
-    def first_file_with_extension(self, extension:str):
-        target_dir = self if self.is_dir() else ToolFile(self.get_dir())
-        for file in target_dir.dir_tool_file_iter():
-            if file.is_dir() is False and file.get_extension() == extension:
+    def FirstFileWithExtension(self, extension:str):
+        target_dir = self if self.IsDir() else ToolFile(self.GetDir())
+        for file in target_dir.DirToolFileIter():
+            if file.IsDir() is False and file.GetExtension() == extension:
                 return file
         return None
-    def first_file(self, pr:Callable[[str], bool]):
-        target_dir = self if self.is_dir() else ToolFile(self.get_dir())
-        for file in target_dir.dir_tool_file_iter():
+    def FirstFile(self, pr:Callable[[str], bool]):
+        target_dir = self if self.IsDir() else ToolFile(self.GetDir())
+        for file in target_dir.DirToolFileIter():
             if pr(file.GetFilename()):
                 return file
         return None
-    def find_file_with_extension(self, extension:str):
-        target_dir = self if self.is_dir() else ToolFile(self.get_dir())
+    def FindFileWithExtension(self, extension:str):
+        target_dir = self if self.IsDir() else ToolFile(self.GetDir())
         result:List[ToolFile] = []
-        for file in target_dir.dir_tool_file_iter():
-            if file.is_dir() is False and file.get_extension() == extension:
+        for file in target_dir.DirToolFileIter():
+            if file.IsDir() is False and file.GetExtension() == extension:
                 result.append(file)
         return result
-    def find_file(self, pr:Callable[[str], bool]):
-        target_dir = self if self.is_dir() else ToolFile(self.get_dir())
+    def FindFile(self, pr:Callable[[str], bool]):
+        target_dir = self if self.IsDir() else ToolFile(self.GetDir())
         result:List[ToolFile] = []
-        for file in target_dir.dir_tool_file_iter():
+        for file in target_dir.DirToolFileIter():
             if pr(file.GetFilename()):
                 result.append(file)
         return result
-    def dir_walk(
+    def DirWalk(
         self,
         top,
         topdown:        bool               = True,
@@ -565,77 +411,28 @@ class ToolFile(BaseModel):
         ) -> Iterator[tuple[dir_name_type, list[dir_name_type], list[file_name_type]]]:
         return os.walk(self.OriginFullPath, top=top, topdown=topdown, onerror=onerror, followlinks=followlinks)
 
-    def append_text(self, line:str):
-        if self.has_data_type_is(type(str)):
-            self.data += line
-        elif self.has_data_type_is(type(DocumentObject)):
-            self.data.add_paragraph(line)
-        else:
-            raise TypeError(f"Unsupported data type for {sys._getframe().f_code.co_name}")
-        return self
 
     def bool(self):
-        return self.exists()
+        return self.Exists()
     def __bool__(self):
-        return self.exists()
+        return self.Exists()
 
-    def must_exists_path(self):
-        self.close()
-        self.try_create_parent_path()
-        self.create()
+    def MustExistsPath(self):
+        self.TryCreateParentPath()
+        self.Create()
         return self
 
-    def make_file_inside(self, data:Self, is_delete_source = False):
-        if self.is_dir() is False:
+    def MakeFileInside(self, data:Self, is_delete_source = False):
+        if self.IsDir() is False:
             raise Exception("Cannot make file inside a file, because this object target is not a directory")
-        result = self|data.GetFilename()
+        result:ToolFile = self|data.GetFilename()
         if is_delete_source:
-            data.move(result)
+            data.Move(result)
         else:
-            data.copy(result)
+            data.Copy(result)
         return self
 
-    @property
-    def extension(self):
-        if self.is_dir():
-            return None
-        return self.get_extension()
-    @property
-    def filename(self):
-        if self.is_dir():
-            return None
-        return self.GetFilename(True)
-    @property
-    def dirname(self):
-        if self.is_dir():
-            return self.get_current_dir_name()
-        return None
-    @property
-    def dirpath(self):
-        if self.is_dir():
-            return self.get_current_dir_name()
-        return None
-    @property
-    def shortname(self):
-        return self.GetFilename(False)
-    @property
-    def fullpath(self):
-        return self.GetFullPath()
-
-    def make_lib_path(self) -> Path:
-        return Path(self.OriginFullPath)
-
-    def in_extensions(self, *args:str) -> bool:
-        return self.get_extension() in args
-
-    @override
-    def SymbolName(self):
-        return f"ToolFile<{self.GetFullPath()}>"
-    @override
-    def ToString(self):
-        return self.GetFullPath()
-
-    def compress(self, output_path: Optional[str] = None, format: str = 'zip') -> Self:
+    def Compress(self, output_path: Optional[str] = None, format: str = 'zip') -> 'ToolFile':
         """
         压缩文件或目录
         Args:
@@ -644,7 +441,7 @@ class ToolFile(BaseModel):
         Returns:
             压缩后的文件对象
         """
-        if not self.exists():
+        if not self.Exists():
             raise FileNotFoundError(f"File not found: {self.GetFullPath()}")
 
         if output_path is None:
@@ -653,7 +450,7 @@ class ToolFile(BaseModel):
         try:
             if format == 'zip':
                 with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
-                    if self.is_dir():
+                    if self.IsDir():
                         for root, _, files in os.walk(self.GetFullPath()):
                             for file in files:
                                 file_path = os.path.join(root, file)
@@ -663,7 +460,7 @@ class ToolFile(BaseModel):
                         zipf.write(self.GetFullPath(), self.GetFilename())
             elif format == 'tar':
                 with tarfile.open(output_path, 'w') as tarf:
-                    if self.is_dir():
+                    if self.IsDir():
                         tarf.add(self.GetFullPath(), arcname=self.GetFilename())
                     else:
                         tarf.add(self.GetFullPath(), arcname=self.GetFilename())
@@ -674,7 +471,7 @@ class ToolFile(BaseModel):
         except Exception as e:
             raise CompressionError(f"Compression failed: {str(e)}")
 
-    def decompress(self, output_path: Optional[str] = None) -> Self:
+    def Decompress(self, output_path: Optional[str] = None) -> 'ToolFile':
         """
         解压文件
         Args:
@@ -682,27 +479,27 @@ class ToolFile(BaseModel):
         Returns:
             解压后的目录对象
         """
-        if not self.exists():
+        if not self.Exists():
             raise FileNotFoundError(f"File not found: {self.GetFullPath()}")
 
         if output_path is None:
             output_path = self.GetFullPath() + '_extracted'
 
         try:
-            if self.get_extension() == 'zip':
+            if self.GetExtension() == 'zip':
                 with zipfile.ZipFile(self.GetFullPath(), 'r') as zipf:
                     zipf.extractall(output_path)
-            elif self.get_extension() == 'tar':
+            elif self.GetExtension() == 'tar':
                 with tarfile.open(self.GetFullPath(), 'r') as tarf:
                     tarf.extractall(output_path)
             else:
-                raise CompressionError(f"Unsupported archive format: {self.get_extension()}")
+                raise CompressionError(f"Unsupported archive format: {self.GetExtension()}")
 
             return ToolFile(output_path)
         except Exception as e:
             raise CompressionError(f"Decompression failed: {str(e)}")
 
-    def encrypt(self, key: str, algorithm: str = 'AES') -> Self:
+    def Encrypt(self, key: str, algorithm: str = 'AES') -> 'ToolFile':
         """
         加密文件
         Args:
@@ -714,7 +511,7 @@ class ToolFile(BaseModel):
         from cryptography.fernet import Fernet
         from cryptography.hazmat.primitives import hashes
         from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-        if not self.exists():
+        if not self.Exists():
             raise FileNotFoundError(f"File not found: {self.GetFullPath()}")
 
         try:
@@ -759,7 +556,7 @@ class ToolFile(BaseModel):
         from cryptography.fernet import Fernet
         from cryptography.hazmat.primitives import hashes
         from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
-        if not self.exists():
+        if not self.Exists():
             raise FileNotFoundError(f"File not found: {self.GetFullPath()}")
 
         try:
@@ -804,7 +601,7 @@ class ToolFile(BaseModel):
         Returns:
             文件的哈希值(十六进制字符串)
         """
-        if not self.exists():
+        if not self.Exists():
             raise FileNotFoundError(f"File not found: {self.GetFullPath()}")
 
         try:
@@ -834,7 +631,7 @@ class ToolFile(BaseModel):
         Returns:
             是否匹配
         """
-        if not self.exists():
+        if not self.Exists():
             raise FileNotFoundError(f"File not found: {self.GetFullPath()}")
 
         try:
@@ -852,7 +649,7 @@ class ToolFile(BaseModel):
         Returns:
             哈希值文件对象
         """
-        if not self.exists():
+        if not self.Exists():
             raise FileNotFoundError(f"File not found: {self.GetFullPath()}")
 
         try:
@@ -891,7 +688,7 @@ class ToolFile(BaseModel):
         """
         from watchdog.observers import Observer
         from watchdog.events   import FileSystemEventHandler
-        if not self.exists():
+        if not self.Exists():
             raise FileNotFoundError(f"File not found: {self.GetFullPath()}")
 
         try:
@@ -972,15 +769,15 @@ class ToolFile(BaseModel):
         Returns:
             备份文件对象
         """
-        if not self.exists():
+        if not self.Exists():
             raise FileNotFoundError(f"File not found: {self.GetFullPath()}")
 
         try:
             # 生成备份目录
             if backup_dir is None:
-                backup_dir = os.path.join(self.get_dir(), '.backup')
+                backup_dir = os.path.join(self.GetDir(), '.backup')
             backup_dir:Self = ToolFile(backup_dir)
-            backup_dir.must_exists_path()
+            backup_dir.MustExistsPath()
 
             # 生成备份文件名
             timestamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -990,7 +787,7 @@ class ToolFile(BaseModel):
             if backup_format == 'zip':
                 backup_path = backup_dir | f"{backup_name}.zip"
                 with zipfile.ZipFile(backup_path.GetFullPath(), 'w', zipfile.ZIP_DEFLATED) as zipf:
-                    if self.is_dir():
+                    if self.IsDir():
                         for root, _, files in os.walk(self.GetFullPath()):
                             for file in files:
                                 file_path = os.path.join(root, file)
@@ -1001,7 +798,7 @@ class ToolFile(BaseModel):
             elif backup_format == 'tar':
                 backup_path = backup_dir | f"{backup_name}.tar"
                 with tarfile.open(backup_path.GetFullPath(), 'w') as tarf:
-                    if self.is_dir():
+                    if self.IsDir():
                         tarf.add(self.GetFullPath(), arcname=self.GetFilename())
                     else:
                         tarf.add(self.GetFullPath(), arcname=self.GetFilename())
@@ -1014,7 +811,7 @@ class ToolFile(BaseModel):
                     'original_path': self.GetFullPath(),
                     'backup_time': timestamp,
                     'file_size': self.get_size(),
-                    'is_directory': self.is_dir(),
+                    'is_directory': self.IsDir(),
                     'hash': self.calculate_hash()
                 }
                 metadata_path = backup_dir | f"{backup_name}.meta.json"
@@ -1026,7 +823,7 @@ class ToolFile(BaseModel):
                 backups = backup_dir.find_file(lambda f: ToolFile(f).GetFilename().startswith(self.GetFilename() + '_'))
                 backups.sort(key=lambda f: f.GetFilename(), reverse=True)
                 for old_backup in backups[max_backups:]:
-                    old_backup.remove()
+                    old_backup.Remove()
 
             return backup_path
 
@@ -1051,7 +848,7 @@ class ToolFile(BaseModel):
         if not isinstance(backup_file, ToolFile):
             backup_file:Self = ToolFile(backup_file)
 
-        if not backup_file.exists():
+        if not backup_file.Exists():
             raise FileNotFoundError(f"Backup file not found: {backup_file.GetFullPath()}")
 
         try:
@@ -1091,12 +888,12 @@ class ToolFile(BaseModel):
         Returns:
             备份文件列表
         """
-        if not self.exists():
+        if not self.Exists():
             raise FileNotFoundError(f"File not found: {self.GetFullPath()}")
 
         try:
-            backup_dir:Self = ToolFile(os.path.join(self.get_dir(), '.backup'))
-            if not backup_dir.exists():
+            backup_dir:Self = ToolFile(os.path.join(self.GetDir(), '.backup'))
+            if not backup_dir.Exists():
                 return []
 
             backups = backup_dir.find_file(lambda f: ToolFile(f).GetFilename().startswith(self.GetFilename() + '_'))
@@ -1116,7 +913,7 @@ class ToolFile(BaseModel):
             - execute: 是否可执行
             - hidden: 是否隐藏
         """
-        if not self.exists():
+        if not self.Exists():
             raise FileNotFoundError(f"File not found: {self.GetFullPath()}")
 
         try:
@@ -1149,7 +946,7 @@ class ToolFile(BaseModel):
         Returns:
             文件对象本身
         """
-        if not self.exists():
+        if not self.Exists():
             raise FileNotFoundError(f"File not found: {self.GetFullPath()}")
 
         try:
@@ -1189,13 +986,13 @@ class ToolFile(BaseModel):
                 else:  # Unix/Linux/Mac
                     if hidden:
                         if not self.GetFilename().startswith('.'):
-                            self.rename('.' + self.GetFilename())
+                            self.Rename('.' + self.GetFilename())
                     else:
                         if self.GetFilename().startswith('.'):
-                            self.rename(self.GetFilename()[1:])
+                            self.Rename(self.GetFilename()[1:])
 
             # 递归设置目录权限
-            if recursive and self.is_dir():
+            if recursive and self.IsDir():
                 for root, _, files in os.walk(self.GetFullPath()):
                     for file in files:
                         file_path = os.path.join(root, file)
@@ -1252,12 +1049,6 @@ class ToolFile(BaseModel):
         """
         return self.get_permissions()['hidden']
 
-def WrapperFile(file) -> ToolFile:
-    if isinstance(file, ToolFile):
-        return file
-    else:
-        return ToolFile(UnWrapper(file))
-
 def split_elements(
     file:               Union[ToolFile, str],
     *,
@@ -1268,8 +1059,6 @@ def split_elements(
     output_must_exist:  bool                                        = True,
     output_callback:    Optional[Callable[[ToolFile], None]]       = None
     ) -> List[List[ToolFile]]:
-    if is_loss_tool_file(file):
-        return []
     result:                 List[List[ToolFile]]   = tool_split_elements(WrapperFile(file).dir_tool_file_iter(),
                                       ratios=ratios,
                                       pr=pr,
@@ -1278,12 +1067,12 @@ def split_elements(
         return result
     for i in range(min(len(output_dirs), len(result))):
         output_dir:         ToolFile               = output_dirs[i]
-        if output_dir.is_dir() is False:
+        if output_dir.IsDir() is False:
             raise Exception("Outputs must be directory")
         if output_must_exist:
             output_dir.must_exists_as_new()
         for file in result[i]:
-            current = output_dirs[i].make_file_inside(file)
+            current = output_dirs[i].MakeFileInside(file)
             if output_callback:
                 output_callback(current)
 

@@ -39,7 +39,7 @@ class ReflectionException(Exception):
         self.message = f"{ConsoleFrontColor.RED}{message}{ConsoleFrontColor.RESET}"
         super().__init__(self.message)
 
-def get_type_from_string(type_string:str) -> type:
+def String2Type(type_string:str) -> type:
         """
         根据字符串生成类型，使用缓存提高性能
         """
@@ -84,11 +84,11 @@ def get_type_from_string(type_string:str) -> type:
         # 更新缓存
         if result is not None:
             _type_string_cache[type_string] = result
-
-        return result
+            return result
+        raise TypeError(f"Cannot find type '{type_string}', type_string is <{type_string}>")
 
 @functools.lru_cache(maxsize=256)
-def get_type_from_string_with_module(type_string:str, module_name:str) -> type|None:
+def StringWithModel2Type(type_string:str, module_name:str) -> type|None:
     '''
     根据字符串生成类型，带模块名参数，使用缓存
     '''
@@ -111,7 +111,7 @@ def get_type_from_string_with_module(type_string:str, module_name:str) -> type|N
     return None
 
 # 获取泛型参数
-def get_generic_args(type_hint: type | Any) -> tuple[type | None, tuple[type, ...] | None]:
+def GetGenericArgs(type_hint: type | Any) -> tuple[type | None, tuple[type, ...] | None]:
     origin = get_origin(type_hint)  # 获取原始类型
     args = get_args(type_hint)      # 获取泛型参数
 
@@ -119,7 +119,7 @@ def get_generic_args(type_hint: type | Any) -> tuple[type | None, tuple[type, ..
         return None, None
     return origin, args
 
-def is_generic(type_hint: type | Any) -> bool:
+def IsGeneric(type_hint: type | Any) -> bool:
     return "__origin__" in dir(type_hint)
 
 class _SpecialIndictaor:
@@ -133,9 +133,6 @@ class ListIndictaor(_SpecialIndictaor):
     def __repr__(self) -> str:
         return f"ListIndictaor<elementType={self.elementType}>"
     def __str__(self) -> str:
-        return self.__repr__()
-    @override
-    def ToString(self) -> str:
         return self.__repr__()
 
     def __hash__(self) -> int:
@@ -152,9 +149,6 @@ class DictIndictaor(_SpecialIndictaor):
         return f"DictIndictaor<keyType={self.keyType}, valueType={self.valueType}>"
     def __str__(self) -> str:
         return self.__repr__()
-    @override
-    def ToString(self) -> str:
-        return self.__repr__()
 
     def __hash__(self) -> int:
         return hash(Dict[self.keyType, self.valueType])
@@ -168,9 +162,6 @@ class TupleIndictaor(_SpecialIndictaor):
         return f"TupleIndictaor<{', '.join(map(str, self.elementTypes))}>"
     def __str__(self) -> str:
         return self.__repr__()
-    @override
-    def ToString(self) -> str:
-        return self.__repr__()
 
     def __hash__(self) -> int:
         return hash(Tuple[self.elementTypes])
@@ -183,9 +174,6 @@ class SetIndictaor(_SpecialIndictaor):
     def __repr__(self) -> str:
         return f"SetIndictaor<elementType={self.elementType}>"
     def __str__(self) -> str:
-        return self.__repr__()
-    @override
-    def ToString(self) -> str:
         return self.__repr__()
 
     def __hash__(self) -> int:
@@ -205,7 +193,7 @@ def memoize(func):
 
 # 优化to_type函数
 @memoize
-def to_type(
+def ToType(
     typen:          type|Any|str,
     *,
     module_name:    str|None=None
@@ -261,9 +249,9 @@ def to_type(
             for module in sys.modules.values():
                 if type_final in module.__dict__:
                     return module.__dict__[type_final]
-            return get_type_from_string(typen)
-    elif is_union(typen):
-        uTypes = get_union_types(typen)
+            return String2Type(typen)
+    elif IsUnion(typen):
+        uTypes = GetUnionTypes(typen)
         uTypes = [uType for uType in uTypes if uType is not type(None)]
         if len(uTypes) == 1:
             return uTypes[0]
@@ -286,16 +274,16 @@ def to_type(
     else:
         return type(typen)
 
-def try_to_type(typen:type|Any|str, *, module_name:str|None=None) -> type|List[type]|_SpecialIndictaor|None:
+def TryToType(typen:type|Any|str, *, module_name:str|None=None) -> type|List[type]|_SpecialIndictaor|None:
     try:
-        return to_type(typen, module_name=module_name)
+        return ToType(typen, module_name=module_name)
     except Exception:
         return None
 
-def is_union(type_hint: type | Any) -> bool:
+def IsUnion(type_hint: type | Any) -> bool:
     return "__origin__" in dir(type_hint) and type_hint.__origin__ == Union
 
-def get_union_types(type_hint: type | Any) -> List[type]:
+def GetUnionTypes(type_hint: type | Any) -> List[type]:
     return [t for t in type_hint.__args__]
 
 class TypeVarIndictaor:
@@ -306,7 +294,7 @@ class AnyVarIndicator:
 
 # 优化decay_type函数
 @memoize
-def decay_type(
+def DecayType(
     type_hint:      type|Any,
     *,
     module_name:    str|None=None
@@ -317,29 +305,29 @@ def decay_type(
 
     if GetInternalReflectionDebug():
         print_colorful(ConsoleFrontColor.YELLOW, f"Decay: {type_hint}")
-
-    result:type|List[type] = None
+    
+    result: type|List[type] = None 
 
     # 处理字符串类型
     if isinstance(type_hint, str):
         try:
-            result = to_type(type_hint, module_name=module_name)
+            result = ToType(type_hint, module_name=module_name)
         except TypeError:
             result = Any
     # 处理forward reference
     elif hasattr(type_hint, "__forward_arg__"):
-        result = to_type(type_hint.__forward_arg__, module_name=module_name)
+        result = ToType(type_hint.__forward_arg__, module_name=module_name)
     # 处理type类型
     elif type_hint is type:
         result = type_hint
     # 处理union类型
-    elif is_union(type_hint):
-        result = get_union_types(type_hint)
+    elif IsUnion(type_hint):
+        result = GetUnionTypes(type_hint)
     # 处理TypeVar
     elif isinstance(type_hint, TypeVar):
         result = TypeVarIndictaor
     # 处理泛型类型
-    elif is_generic(type_hint):
+    elif IsGeneric(type_hint):
         result = get_origin(type_hint)
     else:
         raise ReflectionException(f"Invalid type: {type_hint}<{type_hint.__class__}>")
@@ -348,7 +336,7 @@ def decay_type(
         print_colorful(ConsoleFrontColor.YELLOW, f"Result: {result}")
     return result
 
-def is_just_defined_in_current_class(member_name:str, current_class:type) -> bool:
+def IsJustDefinedInCurrentClass(member_name:str, current_class:type) -> bool:
     '''
     检查成员是否只在当前类中定义，而不是在父类中定义
     '''
@@ -363,104 +351,11 @@ def is_just_defined_in_current_class(member_name:str, current_class:type) -> boo
             return False
     return True
 
-class light_reflection(any_class):
-    def __init__(self, obj:object, type_str:str=None, *args, **kwargs):
-        if obj is not None:
-            self.obj = obj
-        elif type_str is not None:
-            self.obj = self.create_instance(type_str, args, kwargs)
-
-    @override
-    def SymbolName(self):
-        return "light_reflection"
-    @override
-    def ToString(self):
-        return f"ToolReflection<{type(self.obj).__name__}>"
-
-    def get_attributes(self):
-        """获取对象的所有属性和它们的值"""
-        return {attr: getattr(self.obj, attr) for attr in dir(self.obj) if not callable(getattr(self.obj, attr)) and not attr.startswith("__")}
-
-    def get_methods(self):
-        """获取对象的所有方法"""
-        return {method: getattr(self.obj, method) for method in dir(self.obj) if callable(getattr(self.obj, method)) and not method.startswith("__")}
-
-    def contains_attribute(self, attr_name):
-        """检查对象是否具有某个属性"""
-        return hasattr(self.obj, attr_name)
-
-    def contains_method(self, method_name):
-        """检查对象是否具有某个方法"""
-        return hasattr(self.obj, method_name) and callable(getattr(self.obj, method_name))
-
-    def call_method(self, method_name, *args, **kwargs):
-        """调用对象的方法"""
-        if self.contains_method(method_name):
-            return getattr(self.obj, method_name)(*args, **kwargs)
-        else:
-            raise AttributeError(f"{self.obj.__class__.__name__} object has no method '{method_name}'")
-
-    def set_attribute(self, attr_name, value):
-        """设置对象的属性值"""
-        if self.contains_attribute(attr_name):
-            setattr(self.obj, attr_name, value)
-        else:
-            raise AttributeError(f"{self.obj.__class__.__name__} object has no attribute '{attr_name}'")
-    def set(self, field:str, value):
-        self.set_attribute(field, value)
-
-    def get_attribute(self, attr_name):
-        """获取对象的属性值"""
-        if self.contains_attribute(attr_name):
-            return getattr(self.obj, attr_name)
-        else:
-            raise AttributeError(f"{self.obj.__class__.__name__} object has no attribute '{attr_name}'")
-    def get(self, field:str):
-        return self.get_attribute(field)
-
-    def create_instance(self, type_string:str, *args, **kwargs):
-        """根据类型字符串生成类型的实例"""
-        type_ = get_type_from_string(type_string)
-        return type_(*args, **kwargs)
-
-    def create_instance_ex(self, type_string:str, params: Union[Dict[str,object], object]={}):
-        """根据类型字符串生成类型的实例"""
-
-        typen = get_type_from_string(type_string)
-        if type_string in type_symbols:
-            return typen(params)
-        if params is None or len(params) == 0:
-            return typen()
-
-        # 获取构造函数参数信息
-        constructor_params = inspect.signature(typen.__init__).parameters
-        if len(constructor_params) == 0:
-            return typen()
-
-        # 准备构造函数参数
-        init_args = {'args':None, 'kwargs':None}
-        for param_name, param in constructor_params.items():
-            if param_name == 'self':
-                continue
-            if param_name in params:
-                init_args[param_name] = params[param_name]
-            elif param.default is not param.empty:
-                init_args[param_name] = param.default
-            elif param_name == 'args' or param_name == 'kwargs':
-                continue
-            else:
-                raise TypeError(f"Cannot instantiate type '{type_string}' without required parameter '{param_name}'")
-
-        return typen(**init_args)
-
-class BaseInfo(BaseModel, any_class):
-    def __init__(self, **kwargs):
-        BaseModel.__init__(self, **kwargs)
-        any_class.__init__(self)
-
-    @virtual
-    def __str__(self) -> str:
-        return self.ToString()
+class BaseInfo(BaseModel):
+    def SymbolName(self) -> str:
+        return "BaseInfo"
+    def ToString(self) -> str:
+        return self.SymbolName()
 
 class MemberInfo(BaseInfo):
     _MemberName:    str             = PrivateAttr(default="")
@@ -479,7 +374,7 @@ class MemberInfo(BaseInfo):
     def MemberName(self) -> str:
         return self._MemberName
     @property
-    def ParentType(self) -> type:
+    def ParentType(self) -> Optional[type]:
         return self._ParentType
     @property
     def IsStatic(self) -> bool:
@@ -516,9 +411,9 @@ class ValueInfo(BaseInfo):
 
     @property
     def IsUnion(self) -> bool:
-        return is_union(self._RealType)
+        return IsUnion(self._RealType)
     @property
-    def RealType(self):
+    def RealType(self) -> type|Any:
         return self._RealType
     @property
     def IsCollection(self) -> bool:
@@ -609,7 +504,7 @@ class ValueInfo(BaseInfo):
         if valueType is type(None):
             return True
         if self.IsUnion:
-            return any(ValueInfo(uType).Verify(valueType) for uType in get_union_types(self.RealType))
+            return any(ValueInfo(uType).Verify(valueType) for uType in GetUnionTypes(self.RealType))
         elif self.RealType is Any:
             return True
         elif self.RealType is type(None):
@@ -623,7 +518,7 @@ class ValueInfo(BaseInfo):
     def DecayToList(self) -> List[Self]:
         result:List[Self] = []
         if self.IsUnion:
-            for uType in get_union_types(self.RealType):
+            for uType in GetUnionTypes(self.RealType):
                 result.extend(ValueInfo(uType).DecayToList())
         else:
             result.append(self)
@@ -649,7 +544,7 @@ class ValueInfo(BaseInfo):
         module_name:    Optional[str] = None,
         SelfType:       type|Any|None        = None,
         **kwargs
-        ) -> Self:
+        ) -> 'ValueInfo':
         if GetInternalReflectionDebug():
             print_colorful(ConsoleFrontColor.BLUE, f"Current ValueInfo.Create Frame: "\
                 f"metaType={metaType}, SelfType={SelfType}")
@@ -665,17 +560,17 @@ class ValueInfo(BaseInfo):
             else:
                 return ValueInfo(metaType, **kwargs)
         elif isinstance(metaType, str):
-            type_ = try_to_type(metaType, module_name=module_name)
+            type_ = TryToType(metaType, module_name=module_name)
             if type_ is None:
                 return ValueInfo(metaType, **kwargs)
             else:
                 return ValueInfo(type_, **kwargs)
-        elif metaType is Self:
+        elif isinstance(metaType, Self)#metaType is Self:
             if SelfType is None:
                 raise ReflectionException("SelfType is required when metaType is <Self>")
             return ValueInfo.Create(SelfType, **kwargs)
         elif isinstance(metaType, TypeVar):
-            gargs = get_generic_args(metaType)
+            gargs = GetGenericArgs(metaType)
             if len(gargs) == 1:
                 return ValueInfo(gargs[0], **kwargs)
             else:
@@ -687,7 +582,7 @@ class ValueInfo(BaseInfo):
             elif oType is dict:
                 return ValueInfo(dict, [get_args(metaType)[0], get_args(metaType)[1]])
             elif oType is tuple:
-                return ValueInfo(tuple, to_list(get_args(metaType)))
+                return ValueInfo(tuple, list(get_args(metaType)))
             elif oType is set:
                 return ValueInfo(set, [get_args(metaType)[0]])
         return ValueInfo(metaType, **kwargs)
@@ -721,7 +616,7 @@ class FieldInfo(MemberInfo):
 
     @property
     def IsUnion(self) -> bool:
-        return self._MetaType.IsUnion
+        return self.ValueType.IsUnion
     @property
     def FieldName(self) -> str:
         '''
@@ -729,19 +624,18 @@ class FieldInfo(MemberInfo):
         '''
         return self.MemberName
     @property
-    def ValueType(self):
+    def ValueType(self) -> ValueInfo:
         return self._MetaType
     @property
     def FieldType(self):
         '''
         字段类型
         '''
-        return self._MetaType.RealType
+        return self.ValueType.RealType
 
     def Verify(self, valueType:type) -> bool:
-        return self._MetaType.Verify(valueType)
+        return self.ValueType.Verify(valueType)
 
-    @virtual
     def GetValue(self, obj:Any) -> Any:
         if self.IsStatic:
             return getattr(self.ParentType, self.MemberName)
@@ -751,7 +645,7 @@ class FieldInfo(MemberInfo):
                     f"{ConsoleFrontColor.RED} , parent type mismatch, expected {self.ParentType}, got {type(obj)}"\
                     f"{ConsoleFrontColor.RESET}")
             return getattr(obj, self.MemberName)
-    @virtual
+            
     def SetValue(self, obj:Any, value:Any) -> None:
         if self.IsStatic:
             if self.Verify(type(value)):
@@ -934,7 +828,7 @@ class MethodInfo(MemberInfo):
         method:         Callable,
         ctype:          Optional[type]  = None,
         module_name:    Optional[str]   = None
-        ) -> Self:
+        ) -> 'MethodInfo':
         '''
         创建MethodInfo对象
         name: 方法名
@@ -999,7 +893,7 @@ class RefType(ValueInfo):
     _FieldInfos:    List[FieldInfo]  = PrivateAttr()
     _MethodInfos:   List[MethodInfo] = PrivateAttr()
     _MemberNames:   List[str]        = PrivateAttr()
-    _BaseTypes:     List[Self]       = PrivateAttr(default=None)
+    _BaseTypes:     List[Self]       = PrivateAttr(default=[])
     _initialized:   bool             = PrivateAttr(default=False)
     _BaseMemberNamesSet: Set[str]    = PrivateAttr(default_factory=set)
     _member_cache:  Dict[Tuple[str, RefTypeFlag], Optional[MemberInfo]] = PrivateAttr(default_factory=dict)
@@ -1012,12 +906,12 @@ class RefType(ValueInfo):
             super().__init__(dict, generic_args=[metaType.keyType, metaType.valueType])
             metaType = dict
         elif isinstance(metaType, TupleIndictaor):
-            super().__init__(tuple, generic_args=metaType.elementTypes)
+            super().__init__(tuple, generic_args=list(metaType.elementTypes))
             metaType = tuple
         elif isinstance(metaType, SetIndictaor):
             super().__init__(set, generic_args=[metaType.elementType])
             metaType = set
-        elif is_generic(metaType):
+        elif IsGeneric(metaType):
             raise NotImplementedError("Generic type is not supported")
         else:
             super().__init__(metaType)
@@ -1128,7 +1022,7 @@ class RefType(ValueInfo):
         for name, annotation in annotations_dict.items():
             if name not in self._BaseMemberNamesSet and name not in field_names and not name.startswith('__'):
                 field_info = FieldInfo(
-                    metaType=decay_type(annotation),
+                    metaType=DecayType(annotation),
                     name=name,
                     ctype=metaType,
                     is_static=False,
@@ -1220,26 +1114,6 @@ class RefType(ValueInfo):
         else:
             raise ReflectionException(f"Method {name} not found")
 
-    def TryGetFieldValue[T](self, obj:object, lv:left_value_reference[T], name:str, flags:RefTypeFlag=RefTypeFlag.Default) -> bool:
-        try:
-            lv.ref_value = self.GetFieldValue(obj, name, flags)
-            return True
-        except ReflectionException:
-            return False
-    def TrySetFieldValue[T](self, obj:object, name:str, value:T, flags:RefTypeFlag=RefTypeFlag.Default) -> bool:
-        try:
-            self.SetFieldValue(obj, name, value, flags)
-            return True
-        except ReflectionException:
-            return False
-    def TryInvokeMethod[T](self, obj:object, lv:left_value_reference[T],
-                             name:str, flags:RefTypeFlag=RefTypeFlag.Default, *args, **kwargs) -> bool:
-        try:
-            lv.ref_value = self.InvokeMethod(obj, name, flags, *args, **kwargs)
-            return True
-        except ReflectionException:
-            return False
-
     def CreateInstance(self, *args, **kwargs) -> object:
         return self.RealType(*args, **kwargs)
 
@@ -1252,7 +1126,7 @@ class RefType(ValueInfo):
     @override
     def ToString(self) -> str:
         return f"RefType<type={self.RealType}, generic={self.GenericArgs}>"
-    def print_str(self, verbose:bool=False, flags:RefTypeFlag=RefTypeFlag.Default) -> str:
+    def Print2Str(self, verbose:bool=False, flags:RefTypeFlag=RefTypeFlag.Default) -> str:
         fields:     List[str] = []
         methods:    List[str] = []
         for field in self.GetFields(flags):
@@ -1264,8 +1138,7 @@ class RefType(ValueInfo):
         return f"RefType<type={self.RealType}{', fields=' if len(fields)!=0 else ''}{', '.join(fields)}{ConsoleFrontColor.RESET}"\
                f"{', methods=' if len(methods)!=0 else ''}{', '.join(methods)}{ConsoleFrontColor.RESET}>"
 
-    @sealed
-    def tree(self, indent:int=4) -> str:
+    def Print2Tree(self, indent:int=4) -> str:
         type_set: set = set()
         def dfs(currentType:RefType) -> Dict[str, Dict[str, Any]|Any]:
             if currentType.IsPrimitive:
@@ -1312,7 +1185,7 @@ class RefType(ValueInfo):
         return self.RealType == other.RealType
 
     # 添加新的优化方法，避免重复检查
-    def _init_base_types_if_needed(self):
+    def _InitBaseTypesIfNeeded(self):
         """初始化基类类型，只在需要时执行"""
         if self._BaseTypes is None:
             self._BaseTypes = []
@@ -1327,7 +1200,7 @@ class RefType(ValueInfo):
     @functools.lru_cache(maxsize=128)
     def GetBaseFields(self, flag:RefTypeFlag=RefTypeFlag.Default) -> List[FieldInfo]:
         if self._BaseTypes is None:
-            self._init_base_types_if_needed()
+            self._InitBaseTypesIfNeeded()
         result = []
         for baseType in self._BaseTypes:
             result.extend(baseType.GetFields(flag))
@@ -1336,7 +1209,7 @@ class RefType(ValueInfo):
     @functools.lru_cache(maxsize=128)
     def GetAllBaseFields(self) -> List[FieldInfo]:
         if self._BaseTypes is None:
-            self._init_base_types_if_needed()
+            self._InitBaseTypesIfNeeded()
         result = []
         for baseType in self._BaseTypes:
             result.extend(baseType.GetAllFields())
@@ -1346,7 +1219,7 @@ class RefType(ValueInfo):
     @functools.lru_cache(maxsize=128)
     def GetBaseMethods(self, flag:RefTypeFlag=RefTypeFlag.Default) -> List[MethodInfo]:
         if self._BaseTypes is None:
-            self._init_base_types_if_needed()
+            self._InitBaseTypesIfNeeded()
         result = []
         for baseType in self._BaseTypes:
             result.extend(baseType.GetMethods(flag))
@@ -1355,7 +1228,7 @@ class RefType(ValueInfo):
     @functools.lru_cache(maxsize=128)
     def GetAllBaseMethods(self) -> List[MethodInfo]:
         if self._BaseTypes is None:
-            self._init_base_types_if_needed()
+            self._InitBaseTypesIfNeeded()
         result = []
         for baseType in self._BaseTypes:
             result.extend(baseType.GetAllMethods())
@@ -1364,7 +1237,7 @@ class RefType(ValueInfo):
     @functools.lru_cache(maxsize=128)
     def GetBaseMembers(self, flag:RefTypeFlag=RefTypeFlag.Default) -> List[MemberInfo]:
         if self._BaseTypes is None:
-            self._init_base_types_if_needed()
+            self._InitBaseTypesIfNeeded()
         result = []
         for baseType in self._BaseTypes:
             result.extend(baseType.GetMembers(flag))
@@ -1373,7 +1246,7 @@ class RefType(ValueInfo):
     @functools.lru_cache(maxsize=128)
     def GetAllBaseMembers(self) -> List[MemberInfo]:
         if self._BaseTypes is None:
-            self._init_base_types_if_needed()
+            self._InitBaseTypesIfNeeded()
         result = []
         for baseType in self._BaseTypes:
             result.extend(baseType.GetAllMembers())
@@ -1434,7 +1307,7 @@ RTypen[T] 是 T 类型的 RefType
 
 _Internal_TypeManager:Optional['TypeManager'] = None
 
-class TypeManager(BaseModel, any_class):
+class TypeManager(BaseModel):
     _RefTypes:              Dict[type|_SpecialIndictaor, RefType]   = PrivateAttr(default_factory=dict)
     _is_preheated:          bool                                    = PrivateAttr(default=False)
     _weak_refs:             Dict[int, "weakref.ref[RefType]"]       = PrivateAttr(default_factory=dict)  # 使用真正的弱引用
@@ -1442,7 +1315,7 @@ class TypeManager(BaseModel, any_class):
     _string_to_type_cache:  Dict[str, Any]                          = PrivateAttr(default_factory=dict)  # 字符串到类型的缓存
 
     @classmethod
-    def GetInstance(cls) -> Self:
+    def GetInstance(cls) -> 'TypeManager':
         global _Internal_TypeManager
         if _Internal_TypeManager is None:
             _Internal_TypeManager = cls()
@@ -1457,7 +1330,7 @@ class TypeManager(BaseModel, any_class):
         # 常用的基础类型列表
         common_types = [
             int, float, str, bool, list, dict, tuple, set,
-            object, type, None.__class__, Exception, BaseModel, any_class
+            object, type, None.__class__, Exception, BaseModel
         ]
 
         # 预加载的类型和它们之间常见的关系，减少后续运行时计算
@@ -1498,12 +1371,12 @@ class TypeManager(BaseModel, any_class):
 
             # 尝试使用to_type函数
             try:
-                return to_type(data, module_name=module_name)
+                return ToType(data, module_name=module_name)
             except Exception:
                 pass
 
         # 尝试使用try_to_type函数作为回退
-        metaType = try_to_type(data, module_name=module_name)
+        metaType = TryToType(data, module_name=module_name)
         if metaType is None or isinstance(metaType, list):
             metaType = data
         return metaType

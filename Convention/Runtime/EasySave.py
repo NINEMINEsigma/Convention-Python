@@ -9,42 +9,40 @@ def SetInternalEasySaveDebug(debug:bool) -> None:
     global _Internal_EasySave_Debug
     _Internal_EasySave_Debug = debug
 
-class EasySaveSetting(BaseModel, any_class):
+class EasySaveSetting(BaseModel):
     key:            str         = Field(description="目标键", default="easy")
     # 从目标文件进行序列化/反序列化
     file:           str         = Field(description="目标文件")
     # 序列化/反序列化的格式方法
-    format:         Literal["json", "binary"] = Field(description="保存模式", default="json")
+    formatMode:         Literal["json", "binary"] = Field(description="保存模式", default="json")
     # TODO: refChain:       bool        = Field(description="是否以保留引用的方式保存", default=True)
     # 文件形式与参数
     # TODO: encoding:       str         = Field(description="编码", default="utf-8")
-    is_backup:      bool        = Field(description="是否备份", default=True)
+    isBackup:      bool        = Field(description="是否备份", default=True)
     backup_suffix:  str         = Field(description="备份后缀", default=".backup")
     # 序列化/反序列化时, 如果设置了忽略字段的谓词, 则被谓词选中的字段将不会工作
     # 如果设置了选择字段的谓词, 则被选中的字段才会工作
-    ignore_pr:      Optional[Callable[[FieldInfo], bool]] = Field(description="忽略字段的谓词", default=None)
-    select_pr:      Optional[Callable[[FieldInfo], bool]] = Field(description="选择字段的谓词", default=None)
+    ignorePr:      Optional[Callable[[FieldInfo], bool]] = Field(description="忽略字段的谓词", default=None)
+    selectPr:      Optional[Callable[[FieldInfo], bool]] = Field(description="选择字段的谓词", default=None)
 
-class ESWriter(BaseModel, any_class):
+class ESWriter(BaseModel):
     setting:            EasySaveSetting = Field(description="设置")
 
-    @sealed
     def _GetFields(self, rtype:RefType) -> List[FieldInfo]:
         '''
         获取字段
         '''
         fields: List[FieldInfo] = []
-        if self.setting.ignore_pr is not None and self.setting.select_pr is not None:
-            fields = [ field for field in rtype.GetAllFields() if self.setting.select_pr(field) and not self.setting.ignore_pr(field) ]
-        elif self.setting.select_pr is None and self.setting.ignore_pr is None:
+        if self.setting.ignorePr is not None and self.setting.selectPr is not None:
+            fields = [ field for field in rtype.GetAllFields() if self.setting.selectPr(field) and not self.setting.ignorePr(field) ]
+        elif self.setting.selectPr is None and self.setting.ignorePr is None:
             fields = rtype.GetFields()
-        elif self.setting.ignore_pr is not None:
-            fields = [ field for field in rtype.GetAllFields() if not self.setting.ignore_pr(field) ]
+        elif self.setting.ignorePr is not None:
+            fields = [ field for field in rtype.GetAllFields() if not self.setting.ignorePr(field) ]
         else:
-            fields = [ field for field in rtype.GetAllFields() if self.setting.select_pr(field) ]
+            fields = [ field for field in rtype.GetAllFields() if self.setting.selectPr(field) ]
         return fields
 
-    @sealed
     def _DoJsonSerialize(self, result_file:ToolFile, rtype:RefType, rinstance:Any) -> Any:
         '''
         序列化: json格式
@@ -77,7 +75,7 @@ class ESWriter(BaseModel, any_class):
                     raise ReflectionException(f"{ConsoleFrontColor.RED}容器<{rtype.RealType}>"\
                         f"在序列化时遇到错误:{ConsoleFrontColor.RESET}\n{e}") from e
                 raise NotImplementedError(f"{ConsoleFrontColor.RED}不支持的容器: {rinstance}"\
-                        f"<{rtype.print_str(verbose=GetInternalEasySaveDebug())}>{ConsoleFrontColor.RESET}")
+                        f"<{rtype.Print2Str(verbose=GetInternalEasySaveDebug())}>{ConsoleFrontColor.RESET}")
             elif hasattr(rtype.RealType, "__easy_serialize__"):
                 custom_data, is_need_type = rtype.RealType.__easy_serialize__(rinstance)
                 if is_need_type:
@@ -104,85 +102,79 @@ class ESWriter(BaseModel, any_class):
                 return layer
 
         layers: Dict[str, Any] = {}
-        if result_file.exists():
-            filedata = result_file.load()
+        if result_file.Exists():
+            filedata = result_file.LoadAsJson()
             if isinstance(filedata, dict):
                 layers = filedata
         layers[self.setting.key] = {
             "__type": AssemblyTypen(rtype.RealType),
             "value": dfs(rtype, rinstance)
         }
-        result_file.data = layers
-        result_file.save_as_json()
+        result_file.SaveAsJson(layers)
 
-    @sealed
     def _DoBinarySerialize(self, result_file:ToolFile, rinstance:Any) -> Any:
         '''
         序列化: 二进制格式
         '''
-        result_file.data = rinstance
-        result_file.save_as_binary()
+        result_file.SaveAsBinary(rinstance)
 
-    @virtual
     def Serialize(self, result_file:ToolFile, rtype:RefType, rinstance:Any) -> Any:
         '''
         序列化
         '''
-        if self.setting.format == "json":
+        if self.setting.formatMode == "json":
             self._DoJsonSerialize(result_file, rtype, rinstance)
-        elif self.setting.format == "binary":
+        elif self.setting.formatMode == "binary":
             self._DoBinarySerialize(result_file, rinstance)
         else:
-            raise NotImplementedError(f"不支持的格式: {self.setting.format}")
+            raise NotImplementedError(f"不支持的格式: {self.setting.formatMode}")
 
-    @virtual
     def Write[T](self, rinstance:T) -> ToolFile:
         '''
         写入数据
         '''
         result_file:    ToolFile   = ToolFile(self.setting.file)
         backup_file:    ToolFile   = None
-        if result_file.dirpath is not None and not ToolFile(result_file.dirpath).exists():
-            raise FileNotFoundError(f"文件路径不存在: {result_file.dirpath}")
-        if result_file.exists() and self.setting.is_backup:
-            if result_file.dirpath is not None:
-                backup_file = result_file.dirpath | (result_file.get_filename(True) + self.setting.backup_suffix)
+        if result_file.GetDir() is not None and not ToolFile(result_file.GetDir()).Exists():
+            raise FileNotFoundError(f"文件路径不存在: {result_file.GetDir()}")
+        if result_file.Exists() and self.setting.isBackup:
+            if result_file.GetDir() is not None:
+                backup_file = ToolFile(result_file.GetDir()) | (result_file.GetFilename(True) + self.setting.backup_suffix)
             else:
-                backup_file = ToolFile(result_file.get_filename(True) + self.setting.backup_suffix)
-            result_file.copy(backup_file)
+                backup_file = ToolFile(result_file.GetFilename(True) + self.setting.backup_suffix)
+            result_file.Copy(backup_file)
         try:
             self.Serialize(result_file, TypeManager.GetInstance().CreateOrGetRefType(rinstance), rinstance)
         except Exception:
             if backup_file is not None:
-                result_file.remove()
-                backup_file.copy(result_file)
-                backup_file.remove()
+                result_file.Remove()
+                backup_file.Copy(result_file)
+                backup_file.Remove()
             raise
         finally:
             if backup_file is not None:
-                backup_file.remove()
+                backup_file.Remove()
         return result_file
 
-class ESReader(BaseModel, any_class):
+class ESReader(BaseModel):
     setting:            EasySaveSetting = Field(description="设置")
 
-    @sealed
     def _GetFields(self, rtype:RefType) -> List[FieldInfo]:
         '''
         获取字段
         '''
         fields: List[FieldInfo] = []
-        if self.setting.ignore_pr is not None and self.setting.select_pr is not None:
-            fields = [ field for field in rtype.GetAllFields() if self.setting.select_pr(field) and not self.setting.ignore_pr(field) ]
-        elif self.setting.select_pr is None and self.setting.ignore_pr is None:
+        if self.setting.ignorePr is not None and self.setting.selectPr is not None:
+            fields = [ field for field in rtype.GetAllFields() if self.setting.selectPr(field) and not self.setting.ignorePr(field) ]
+        elif self.setting.selectPr is None and self.setting.ignorePr is None:
             fields = rtype.GetFields()
-        elif self.setting.ignore_pr is not None:
-            fields = [ field for field in rtype.GetAllFields() if not self.setting.ignore_pr(field) ]
+        elif self.setting.ignorePr is not None:
+            fields = [ field for field in rtype.GetAllFields() if not self.setting.ignorePr(field) ]
         else:
-            fields = [ field for field in rtype.GetAllFields() if self.setting.select_pr(field) ]
+            fields = [ field for field in rtype.GetAllFields() if self.setting.selectPr(field) ]
         return fields
 
-    def get_rtype_from_typen(self, type_label:str) -> RefType:
+    def GetRtypeFromTypen(self, type_label:str) -> RefType:
         '''
         从类型标签中获取类型
         '''
@@ -217,12 +209,12 @@ class ESReader(BaseModel, any_class):
             ValueError: 当rinstance不为None时抛出
         '''
         # 从文件中加载JSON数据
-        layers:             Dict[str, Any]  = read_file.load_as_json()
+        layers:             Dict[str, Any]  = read_file.LoadAsJson()
         if self.setting.key not in layers:
             raise ValueError(f"{ConsoleFrontColor.RED}文件中不包含目标键: {ConsoleFrontColor.RESET}{self.setting.key}")
         # 如果未指定类型, 则从JSON数据中获取类型信息
         if rtype is None:
-            rtype:          RefType         = self.get_rtype_from_typen(layers["__type"])
+            rtype:          RefType         = self.GetRtypeFromTypen(layers["__type"])
         layers:             Dict[str, Any]  = layers[self.setting.key]["value"]
         result_instance:    Any             = None
 
@@ -240,7 +232,7 @@ class ESReader(BaseModel, any_class):
             '''
             # 如果类型为None且当前层包含类型信息, 则获取类型
             if isinstance(layer, dict) and "__type" in layer:
-                rtype = self.get_rtype_from_typen(layer["__type"])
+                rtype = self.GetRtypeFromTypen(layer["__type"])
             if rtype is None:
                 raise ValueError(f"{ConsoleFrontColor.RED}当前层不包含类型信息: {ConsoleFrontColor.RESET}{LimitStringLength(str(layer), 100)}")
             if GetInternalEasySaveDebug():
@@ -280,7 +272,7 @@ class ESReader(BaseModel, any_class):
                 except Exception as e:
                     raise ReflectionException(f"容器<{LimitStringLength(str(layer), 100)}>在反序列化时遇到错误:\n{e}") from e
                 raise NotImplementedError(f"{ConsoleFrontColor.RED}不支持的容器: {LimitStringLength(str(layer), 100)}"\
-                        f"<{rtype.print_str(verbose=GetInternalEasySaveDebug())}>{ConsoleFrontColor.RESET}")
+                        f"<{rtype.Print2Str(verbose=GetInternalEasySaveDebug())}>{ConsoleFrontColor.RESET}")
             # 处理对象类型
             elif isinstance(rtype.RealType, type) and hasattr(rtype.RealType, "__easy_deserialize__"):
                 return rtype.RealType.__easy_deserialize__(layer)
@@ -288,7 +280,7 @@ class ESReader(BaseModel, any_class):
                 rinstance = rtype.CreateInstance()
                 if GetInternalEasySaveDebug():
                     print_colorful(ConsoleFrontColor.YELLOW, f"rinstance rtype target: {ConsoleFrontColor.RESET}"\
-                        f"{rtype.print_str(verbose=True, flags=RefTypeFlag.Field|RefTypeFlag.Instance|RefTypeFlag.Public)}")
+                        f"{rtype.Print2Str(verbose=True, flags=RefTypeFlag.Field|RefTypeFlag.Instance|RefTypeFlag.Public)}")
                 fields:List[FieldInfo] = self._GetFields(rtype)
                 for field in fields:
                     if field.FieldName not in layer:
@@ -336,50 +328,47 @@ class ESReader(BaseModel, any_class):
         result_instance = dfs(rtype, layers)
         return result_instance
 
-    @sealed
     def _DoBinaryDeserialize(self, read_file:ToolFile, rtype:RefType) -> Any:
         '''
         反序列化: 二进制格式
         '''
-        return read_file.load_as_binary()
+        return read_file.LoadAsBinary()
 
-    @virtual
     def Deserialize(self, read_file:ToolFile, rtype:Optional[RefType]=None) -> Any:
         '''
         反序列化
         '''
-        if self.setting.format == "json":
+        if self.setting.formatMode == "json":
             return self._DoJsonDeserialize(read_file, rtype)
-        elif self.setting.format == "binary":
+        elif self.setting.formatMode == "binary":
             return self._DoBinaryDeserialize(read_file, rtype)
         else:
-            raise NotImplementedError(f"不支持的格式: {self.setting.format}")
+            raise NotImplementedError(f"不支持的格式: {self.setting.formatMode}")
 
-    @virtual
     def Read[T](self, rtype:Optional[RTypen[T]]=None) -> T:
         '''
         读取数据
         '''
         read_file: ToolFile = ToolFile(self.setting.file)
-        if not read_file.exists():
+        if not read_file.Exists():
             raise FileNotFoundError(f"文件不存在: {read_file}")
-        if read_file.is_dir():
+        if read_file.IsDir():
             raise IsADirectoryError(f"文件是目录: {read_file}")
         return self.Deserialize(read_file, rtype)
 
-class EasySave(any_class):
+class EasySave:
     @staticmethod
-    def Write[T](rinstance:T, file:tool_file_or_str=None, *, setting:Optional[EasySaveSetting]=None) -> ToolFile:
+    def Write[T](rinstance:T, file:Optional[ToolFile|str]=None, *, setting:Optional[EasySaveSetting]=None) -> ToolFile:
         '''
         写入数据
         '''
-        return ESWriter(setting=(setting if setting is not None else EasySaveSetting(file=UnwrapperFile2Str(file)))).Write(rinstance)
+        return ESWriter(setting=(setting if setting is not None else EasySaveSetting(file=str(file)))).Write(rinstance)
 
     @overload
     @staticmethod
     def Read[T](
         rtype:      Typen[T],
-        file:       tool_file_or_str            = None,
+        file:       Optional[ToolFile|str]     = None,
         *,
         setting:    Optional[EasySaveSetting]   = None
         ) -> T:
@@ -388,7 +377,7 @@ class EasySave(any_class):
     @staticmethod
     def Read[T](
         rtype:      RTypen[T],
-        file:       tool_file_or_str            = None,
+        file:       Optional[ToolFile|str]     = None,
         *,
         setting:    Optional[EasySaveSetting]   = None
         ) -> T:
@@ -396,7 +385,7 @@ class EasySave(any_class):
     @staticmethod
     def Read[T](
         rtype:      RTypen[T]|type,
-        file:       tool_file_or_str            = None,
+        file:       Optional[ToolFile|str]     = None,
         *,
         setting:    Optional[EasySaveSetting]   = None
         ) -> T:
@@ -405,4 +394,4 @@ class EasySave(any_class):
         '''
         if isinstance(rtype, type):
             rtype = TypeManager.GetInstance().CreateOrGetRefType(rtype)
-        return ESReader(setting=(setting if setting is not None else EasySaveSetting(file=UnwrapperFile2Str(file)))).Read(rtype)
+        return ESReader(setting=(setting if setting is not None else EasySaveSetting(file=str(file)))).Read(rtype)
