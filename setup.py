@@ -18,7 +18,9 @@ setup(
     python_requires=">=3.12",
     install_requires=[
         "colorama",
-        "pydantic"
+        "pydantic",
+        "python-docx",
+        "Pillow"
     ],
     exclude_package_data={"": ["*.meta"]},
 )

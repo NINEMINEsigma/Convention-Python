@@ -121,13 +121,13 @@ class ActionEvent[_Call:Callable]:
             return ex
     def CallFunc(self, index:int, *args, **kwargs) -> Union[Any, Exception]:
         return self.CallFuncWithoutCallIndexControl(self.call_indexs[index], *args, **kwargs)
-    def _inject_invoke(self, *args, **kwargs):
+    def _InjectInvoke(self, *args, **kwargs):
         result:List[Any] = []
-        for index in range(self.call_max_count):
+        for index in range(self.CallMaxCount):
             result.append(self.CallFunc(index, *args, **kwargs))
         return result
     def Invoke(self, *args, **kwargs) -> Union[Self, bool]:
-        self.last_result = self._inject_invoke(*args, **kwargs)
+        self.last_result = self._InjectInvoke(*args, **kwargs)
         return self
     def InitCallIndex(self):
         self.call_indexs = [i for i in range(len(self.__actions))]
@@ -247,6 +247,10 @@ class lock_guard:
         self._locker.acquire()
     def __del__(self):
         self._locker.release()
+    def __enter__(self):
+        return
+    def __exit__(self,*args,**kwargs):
+        return True
 
 class global_lock_guard(lock_guard):
     def __init__(self):
@@ -276,3 +280,63 @@ def Nowf() -> str:
     return: str
     '''
     return datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+true: Literal[True] = True
+false: Literal[False] = False
+
+class PlatformIndicator:
+    IsRelease           : bool  = False
+    IsPlatformWindows   : bool  = sys.platform == "Windows"
+    IsPlatformLinux     : bool  = sys.platform == "Linux"
+    IsPlatformOsx       : bool  = sys.platform == "OSX"
+    IsPlatformX64       : bool  = True
+    CompanyName         : str   = "DefaultCompany"
+    ProductName         : str   = "DefaultProject"
+    
+    @staticmethod
+    def GetApplicationPath() -> str:
+        """获取应用程序所在目录"""
+        import os
+        return os.path.dirname(os.path.abspath(__file__))
+    
+    @staticmethod
+    def GetCurrentWorkingDirectory() -> str:
+        """获取当前工作目录"""
+        import os
+        return os.getcwd()
+    
+    # 使用类方法获取路径
+    @classmethod
+    def ApplicationPath(cls) -> str:
+        """应用程序路径属性"""
+        return cls.GetApplicationPath()
+    
+    @classmethod  
+    def StreamingAssetsPath(cls) -> str:
+        """流媒体资源路径属性"""
+        return cls.ApplicationPath() + "/StreamingAssets/"
+    
+    @staticmethod
+    def PersistentDataPath() -> str:
+        """
+        获取持久化数据路径，根据平台返回不同的路径
+        """
+        import os
+        if PlatformIndicator.IsPlatformWindows:
+            return os.path.expandvars(f"%userprofile%\\AppData\\LocalLow\\{PlatformIndicator.CompanyName}\\{PlatformIndicator.ProductName}\\")
+        elif PlatformIndicator.IsPlatformLinux:
+            return os.path.expandvars("$HOME/.config/")
+        return ""
+    
+    @staticmethod
+    def DataPath() -> str:
+        """
+        获取数据路径
+        """
+        return "Assets/"
+
+class DescriptiveIndicator[T]:
+    def __init__(self, description:str, value:T) -> None:
+        self.descripion : str   = description
+        self.value      : T     = value
+
