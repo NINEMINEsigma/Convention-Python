@@ -10,6 +10,20 @@ import                     time
 import                     os
 from colorama       import Fore as ConsoleFrontColor, Back as ConsoleBackgroundColor, Style as ConsoleStyle
 
+class NotImplementedError(Exception):
+    def __init__(self, message:Optional[str]=None) -> None:
+        if message is not None:
+            super().__init__(message)
+        else:
+            super().__init__()
+
+class InvalidOperationError(Exception):
+    def __init__(self, message:Optional[str]=None) -> None:
+        if message is not None:
+            super().__init__(message)
+        else:
+            super().__init__()
+
 def format_traceback_info(char:str='\n', back:int=1):
     return char.join(traceback.format_stack()[:-back])
 
@@ -77,12 +91,7 @@ except ImportError:
 
 type Typen[_T] = type
 
-type Action[_T] = Callable[[_T], None]
-type Action2[_T1, _T2] = Callable[[_T1, _T2], None]
-type Action3[_T1, _T2, _T3] = Callable[[_T1, _T2, _T3], None]
-type Action4[_T1, _T2, _T3, _T4] = Callable[[_T1, _T2, _T3, _T4], None]
-type Action5[_T1, _T2, _T3, _T4, _T5] = Callable[[_T1, _T2, _T3, _T4, _T5], None]
-type ActionW = Callable[[Sequence[Any]], None]
+type Action = Callable[[], None]
 type ClosuresCallable[_T] = Union[Callable[[Optional[None]], _T], Typen[_T]]
 
 def AssemblyTypen(obj:Any) -> str:

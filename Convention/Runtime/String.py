@@ -1,13 +1,7 @@
-from pathlib                    import Path
 from .Config                    import *
-import                                 re
-from pathlib                    import Path
-import xml.etree.ElementTree    as     ET
-from xml.dom                    import minidom
-import                                 math
 
 def LimitStringLength(data, max_length:int=50) -> str:
-    s:str = data if data is str else str(data)
+    s:str = data if isinstance(data, str) else str(data)
     if len(s) <= max_length:
         return s
     else:
@@ -24,7 +18,7 @@ def FillString(data:Any,
              fill_char:     str = " ",
              side:          Literal["left", "right", "center"] = "right"
              ) -> str:
-    s:str = data if data is str else str(data)
+    s:str = data if isinstance(data, str) else str(data)
     char = fill_char[0]
     if len(s) >= max_length:
         return s
