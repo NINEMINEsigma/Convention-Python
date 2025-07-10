@@ -18,8 +18,8 @@ class EasySaveSetting(BaseModel):
     # TODO: refChain:       bool        = Field(description="是否以保留引用的方式保存", default=True)
     # 文件形式与参数
     # TODO: encoding:       str         = Field(description="编码", default="utf-8")
-    isBackup:      bool        = Field(description="是否备份", default=True)
-    backup_suffix:  str         = Field(description="备份后缀", default=".backup")
+    isBackup:               bool        = Field(description="是否备份", default=True)
+    backupSuffix:           str         = Field(description="备份后缀", default=".backup")
     # 序列化/反序列化时, 如果设置了忽略字段的谓词, 则被谓词选中的字段将不会工作
     # 如果设置了选择字段的谓词, 则被选中的字段才会工作
     ignorePr:      Optional[Callable[[FieldInfo], bool]] = Field(description="忽略字段的谓词", default=None)
@@ -139,9 +139,9 @@ class ESWriter(BaseModel):
             raise FileNotFoundError(f"文件路径不存在: {result_file.GetDir()}")
         if result_file.Exists() and self.setting.isBackup:
             if result_file.GetDir() is not None:
-                backup_file = ToolFile(result_file.GetDir()) | (result_file.GetFilename(True) + self.setting.backup_suffix)
+                backup_file = ToolFile(result_file.GetDir()) | (result_file.GetFilename(True) + self.setting.backupSuffix)
             else:
-                backup_file = ToolFile(result_file.GetFilename(True) + self.setting.backup_suffix)
+                backup_file = ToolFile(result_file.GetFilename(True) + self.setting.backupSuffix)
             result_file.Copy(backup_file)
         try:
             self.Serialize(result_file, TypeManager.GetInstance().CreateOrGetRefType(rinstance), rinstance)
@@ -192,7 +192,6 @@ class ESReader(BaseModel):
                 f"{ConsoleFrontColor.YELLOW}, assembly_name: {ConsoleFrontColor.RESET}{assembly_name}")
         return TypeManager.GetInstance().CreateOrGetRefType(typen)
 
-    @sealed
     def _DoJsonDeserialize(self, read_file:ToolFile, rtype:Optional[RefType] = None) -> Any:
         '''
         反序列化: json格式

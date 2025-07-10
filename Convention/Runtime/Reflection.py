@@ -87,7 +87,7 @@ def String2Type(type_string:str) -> type:
             return result
         raise TypeError(f"Cannot find type '{type_string}', type_string is <{type_string}>")
 
-@functools.lru_cache(maxsize=256)
+@functools.lru_cache(maxsize=1024)
 def StringWithModel2Type(type_string:str, module_name:str) -> type|None:
     '''
     根据字符串生成类型，带模块名参数，使用缓存
@@ -565,7 +565,7 @@ class ValueInfo(BaseInfo):
                 return ValueInfo(metaType, **kwargs)
             else:
                 return ValueInfo(type_, **kwargs)
-        elif isinstance(metaType, Self)#metaType is Self:
+        elif isinstance(metaType, Self):#metaType is Self:
             if SelfType is None:
                 raise ReflectionException("SelfType is required when metaType is <Self>")
             return ValueInfo.Create(SelfType, **kwargs)

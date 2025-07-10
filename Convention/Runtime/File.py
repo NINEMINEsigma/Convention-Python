@@ -67,32 +67,17 @@ class PermissionError(FileOperationError):
     """权限操作异常"""
     pass
 
-from pydantic import BaseModel, GetCoreSchemaHandler
+from pydantic import BaseModel, GetCoreSchemaHandler, Field
 from pydantic_core import core_schema
 
 class ToolFile(BaseModel):
     OriginFullPath:str
 
-    @classmethod
-    def __get_pydantic_core_schema__(
-        cls,
-        _source_type: Any,
-        _handler: GetCoreSchemaHandler,
-    ) -> core_schema.CoreSchema:
-        return core_schema.no_info_after_validator_function(
-            cls,
-            core_schema.any_schema(),
-            serialization=core_schema.plain_serializer_function_ser_schema(
-                lambda instance: None
-            ),
-        )
-
-
     def __init__(
         self,
         filePath:          Union[str, Self],
         ):
-        self.OriginFullPath = filePath if isinstance(filePath, str) else filePath.OriginFullPath
+        super().__init__(OriginFullPath=os.path.abspath(os.path.expandvars(str(filePath))))
     def __del__(self):
         pass
     def __str__(self):
@@ -167,7 +152,7 @@ class ToolFile(BaseModel):
     def Copy(self, targetPath:Optional[Union[Self, str]]=None):
         if targetPath is None:
             return ToolFile(self.OriginFullPath)
-        if self.Exists() is False:
+        if self.Exists() == False:
             raise FileNotFoundError("file not found")
         target_file = ToolFile(str(targetPath))
         if target_file.IsDir():
@@ -195,69 +180,35 @@ class ToolFile(BaseModel):
         return self
 
     def LoadAsJson(self) -> Any:
-        if self.Exists() is False or 'w' in self.OriginFullPath:
-            with open(self.OriginFullPath, 'r') as f:
-                json_data = json.load(f)
-                return json_data
-        else:
-            raise FileNotFoundError("file not found")
-
+        with open(self.OriginFullPath, 'r') as f:
+            json_data = json.load(f)
+            return json_data
     def LoadAsCsv(self) -> pd.DataFrame:
-        if self.Exists() is False or 'w' in self.OriginFullPath:
-            with open(self.OriginFullPath, 'r') as f:
-                return pd.read_csv(f)
-        else:
-            raise FileNotFoundError("file not found")
+        with open(self.OriginFullPath, 'r') as f:
+            return pd.read_csv(f)
     def LoadAsXml(self) -> pd.DataFrame:
-        if self.Exists() is False or 'w' in self.OriginFullPath:
-            with open(self.OriginFullPath, 'r') as f:
-                return pd.read_xml(f)
-        else:
-            raise FileNotFoundError("file not found")
+        with open(self.OriginFullPath, 'r') as f:
+            return pd.read_xml(f)
     def LoadAsDataframe(self) -> pd.DataFrame:
-        if self.Exists() is False or 'w' in self.OriginFullPath:
-            with open(self.OriginFullPath, 'r') as f:
-                return pd.read_csv(f)
-        else:
-            raise FileNotFoundError("file not found")
+        with open(self.OriginFullPath, 'r') as f:
+            return pd.read_csv(f)
     def LoadAsExcel(self) -> pd.DataFrame:
-        if self.Exists() is False or 'w' in self.OriginFullPath:
-            with open(self.OriginFullPath, 'r') as f:
-                return pd.read_excel(f)
-        else:
-            raise FileNotFoundError("file not found")
+        with open(self.OriginFullPath, 'r') as f:
+            return pd.read_excel(f)
     def LoadAsBinary(self) -> bytes:
-        if self.Exists() is False or 'w' in self.OriginFullPath:
-            with open(self.OriginFullPath, 'rb') as f:
-                return f.read()
-        else:
-            raise FileNotFoundError("file not found")
+        with open(self.OriginFullPath, 'rb') as f:
+            return f.read()
     def LoadAsText(self) -> str:
-        if self.Exists() is False or 'w' in self.OriginFullPath:
-            with open(self.OriginFullPath, 'r') as f:
-                return f.read()
-        else:
-            raise FileNotFoundError("file not found")
+         with open(self.OriginFullPath, 'r') as f:
+            return f.read()
     def LoadAsWav(self):
-        if self.Exists() is False or 'w' in self.OriginFullPath:
-            return AudioSegment.from_wav(self.OriginFullPath)
-        else:
-            raise FileNotFoundError("file not found")
+        return AudioSegment.from_wav(self.OriginFullPath)
     def LoadAsAudio(self):
-        if self.Exists() is False or 'w' in self.OriginFullPath:
-            return AudioSegment.from_file(self.OriginFullPath)
-        else:
-            raise FileNotFoundError("file not found")
+        return AudioSegment.from_file(self.OriginFullPath)
     def LoadAsImage(self) -> ImageFile.ImageFile:
-        if self.Exists() is False or 'w' in self.OriginFullPath:
-            return Image.open(self.OriginFullPath)
-        else:
-            raise FileNotFoundError("file not found")
+        return Image.open(self.OriginFullPath)
     def LoadAsDocx(self) -> DocumentObject:
-        if self.Exists() is False or 'w' in self.OriginFullPath:
-            return Document(self.OriginFullPath)
-        else:
-            raise FileNotFoundError("file not found")
+        return Document(self.OriginFullPath)
     def LoadAsUnknown(self, suffix:str) -> Any:
         return self.LoadAsText()
     def LoadAsModel(self, model:type[BaseModel]) -> BaseModel:

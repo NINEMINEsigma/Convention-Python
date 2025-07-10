@@ -1,5 +1,5 @@
 from pathlib                    import Path
-from Config                     import *
+from .Config                    import *
 import                                 re
 from pathlib                    import Path
 import xml.etree.ElementTree    as     ET
@@ -47,13 +47,13 @@ def Bytes2String(lines:List[bytes], encoding='utf-8') -> str:
     return "".join(Bytes2Strings(lines, encoding))
 
 def word_segmentation(
-    sentence:   Union[str, light_str, Any],
+    sentence,
     cut_all:    bool                    = False,
     HMM:        bool                    = True,
     use_paddle: bool                    = False
     ) -> Sequence[Optional[Union[Any, str]]]:
     try:
         import jieba
-        return jieba.dt.cut(UnWrapper(sentence), cut_all=cut_all, HMM=HMM, use_paddle=use_paddle)
+        return jieba.dt.cut(str(sentence), cut_all=cut_all, HMM=HMM, use_paddle=use_paddle)
     except ImportError:
         raise ValueError("jieba is not install")
