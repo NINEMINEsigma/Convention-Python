@@ -179,9 +179,9 @@ class ToolFile(BaseModel):
         self.OriginFullPath = new_current_path
         return self
 
-    def LoadAsJson(self) -> Any:
-        with open(self.OriginFullPath, 'r') as f:
-            json_data = json.load(f)
+    def LoadAsJson(self, encoding:str='utf-8', **kwargs) -> Any:
+        with open(self.OriginFullPath, 'r', encoding=encoding) as f:
+            json_data = json.load(f, **kwargs)
             return json_data
     def LoadAsCsv(self) -> pd.DataFrame:
         with open(self.OriginFullPath, 'r') as f:

@@ -269,7 +269,7 @@ class global_lock_guard(lock_guard):
 class thread_instance(threading.Thread):
     def __init__(
         self,
-        call:           Action[None],
+        call:           Action,
         *,
         is_del_join:    bool = True,
         **kwargs
