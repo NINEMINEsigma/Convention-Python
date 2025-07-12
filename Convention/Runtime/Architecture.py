@@ -22,7 +22,7 @@ class IConvertModel[T](IConvertable[T], IModel):
     pass
 
 class SingletonModel[T](IModel):
-    _InjectInstances:Dict[type,object] = {}
+    _InjectInstances:Dict[type,Any] = {}
 
     @staticmethod
     def GetInstance(t:Typen[T]) -> T:
@@ -106,10 +106,10 @@ class Architecture:
             raise NotImplementedError()
     
     _RegisterHistory:   Set[type]           = set()
-    _UncompleteTargets: Dict[type,object]   = {}
+    _UncompleteTargets: Dict[type,Any]   = {}
     _Completer:         Dict[type,Action]   = {}
     _Dependences:       Dict[type,DependenceModel] = {}
-    _Childs:            Dict[type,object]   = {}
+    _Childs:            Dict[type,Any]   = {}
 
     class Registering(IConvertModel[bool]):
         def __init__(self,registerSlot:type) -> None:
@@ -149,7 +149,7 @@ class Architecture:
             cls._UncompleteTargets.pop(complete, None)
 
     @classmethod
-    def Register(cls, slot:type, target:object, completer:Action, *dependences:type) -> 'Architecture.Registering':
+    def Register(cls, slot:type, target:Any, completer:Action, *dependences:type) -> 'Architecture.Registering':
         if slot in cls._RegisterHistory:
             raise InvalidOperationError("Illegal duplicate registrations")
         
@@ -183,11 +183,11 @@ class Architecture:
         return cls.Contains(type(T))
 
     @classmethod
-    def InternalGet(cls, type_:type) -> object:
+    def InternalGet(cls, type_:type) -> Any:
         return cls._Childs[type_]
 
     @classmethod
-    def Get(cls, type_:type) -> object:
+    def Get(cls, type_:type) -> Any:
         return cls.InternalGet(type_)
 
     @classmethod
