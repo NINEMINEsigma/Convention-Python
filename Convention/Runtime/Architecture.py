@@ -268,12 +268,16 @@ class Architecture:
 
     @classmethod
     def UpdateTimeline(cls):
-        for timeline in cls._TimelineQueues.values():
-            if timeline.context < len(timeline.queue):
-                if timeline.queue[timeline.context].predicate():
-                    for action in timeline.queue[timeline.context].actions:
-                        action()
-                    timeline.context += 1
+        stats = True
+        while stats:
+            stats = False
+            for timeline in cls._TimelineQueues.values():
+                if timeline.context < len(timeline.queue):
+                    if timeline.queue[timeline.context].predicate():
+                        stats = True
+                        for action in timeline.queue[timeline.context].actions:
+                            action()
+                        timeline.context += 1
 
     @classmethod
     def ResetTimelineContext(cls, timeline_id:int):
