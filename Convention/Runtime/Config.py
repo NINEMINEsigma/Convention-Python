@@ -121,12 +121,12 @@ def ReadAssemblyTypen(
 class ActionEvent[_Call:Callable]:
     def __init__(self, actions:Sequence[_Call]):
         super().__init__()
-        self.__actions:     List[Callable]  = [action for action in actions]
+        self._actions:      List[Callable]  = [action for action in actions]
         self.call_indexs:   List[int]       = [i for i in range(len(actions))]
         self.last_result:   List[Any]       = []
     def CallFuncWithoutCallIndexControl(self, index:int, *args, **kwargs) -> Union[Any, Exception]:
         try:
-            return self.__actions[index](*args, **kwargs)
+            return self._actions[index](*args, **kwargs)
         except Exception as ex:
             return ex
     def CallFunc(self, index:int, *args, **kwargs) -> Union[Any, Exception]:
@@ -140,19 +140,19 @@ class ActionEvent[_Call:Callable]:
         self.last_result = self._InjectInvoke(*args, **kwargs)
         return self
     def InitCallIndex(self):
-        self.call_indexs = [i for i in range(len(self.__actions))]
+        self.call_indexs = [i for i in range(len(self._actions))]
     def AddAction(self, action:_Call):
-        self.__actions.append(action)
-        self.call_indexs.append(len(self.__actions)-1)
+        self._actions.append(action)
+        self.call_indexs.append(len(self._actions)-1)
         return self
     def AddActions(self, actions:Sequence[_Call]):
         for action in actions:
             self.AddAction(action)
         return self
     def _InternalRemoveAction(self, action:_Call):
-        if action in self.__actions:
-            index = self.__actions.index(action)
-            self.__actions.remove(action)
+        if action in self._actions:
+            index = self._actions.index(action)
+            self._actions.remove(action)
             self.call_indexs.remove(index)
             for i in range(len(self.call_indexs)):
                 if self.call_indexs[i] > index:
@@ -172,7 +172,7 @@ class ActionEvent[_Call:Callable]:
         return len(self.call_indexs)
     @property
     def ActionCount(self):
-        return len(self.__actions)
+        return len(self._actions)
 
 # region instance
 
