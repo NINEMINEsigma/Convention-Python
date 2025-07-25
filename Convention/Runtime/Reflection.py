@@ -565,7 +565,7 @@ class ValueInfo(BaseInfo):
                 return ValueInfo(metaType, **kwargs)
             else:
                 return ValueInfo(type_, **kwargs)
-        elif isinstance(metaType, Self):#metaType is Self:
+        elif metaType is Self:
             if SelfType is None:
                 raise ReflectionException("SelfType is required when metaType is <Self>")
             return ValueInfo.Create(SelfType, **kwargs)
@@ -1198,7 +1198,7 @@ class RefType(ValueInfo):
 
     # 确保正确地实现所有GetBase*方法
     @functools.lru_cache(maxsize=128)
-    def GetBaseFields(self, flag:RefTypeFlag=RefTypeFlag.Default) -> List[FieldInfo]:
+    def _GetBaseFields(self, flag:RefTypeFlag=RefTypeFlag.Default) -> List[FieldInfo]:
         if self._BaseTypes is None:
             self._InitBaseTypesIfNeeded()
         result = []
@@ -1206,8 +1206,11 @@ class RefType(ValueInfo):
             result.extend(baseType.GetFields(flag))
         return result
 
+    def GetBaseFields(self, flag:RefTypeFlag=RefTypeFlag.Default) -> List[FieldInfo]:
+        return self._GetBaseFields(flag)
+
     @functools.lru_cache(maxsize=128)
-    def GetAllBaseFields(self) -> List[FieldInfo]:
+    def _GetAllBaseFields(self) -> List[FieldInfo]:
         if self._BaseTypes is None:
             self._InitBaseTypesIfNeeded()
         result = []
@@ -1215,9 +1218,12 @@ class RefType(ValueInfo):
             result.extend(baseType.GetAllFields())
         return result
 
+    def GetAllBaseFields(self) -> List[FieldInfo]:
+        return self._GetAllBaseFields()
+
     # 修改所有的GetBase*方法
     @functools.lru_cache(maxsize=128)
-    def GetBaseMethods(self, flag:RefTypeFlag=RefTypeFlag.Default) -> List[MethodInfo]:
+    def _GetBaseMethods(self, flag:RefTypeFlag=RefTypeFlag.Default) -> List[MethodInfo]:
         if self._BaseTypes is None:
             self._InitBaseTypesIfNeeded()
         result = []
@@ -1225,8 +1231,11 @@ class RefType(ValueInfo):
             result.extend(baseType.GetMethods(flag))
         return result
 
+    def GetBaseMethods(self, flag:RefTypeFlag=RefTypeFlag.Default) -> List[MethodInfo]:
+        return self._GetBaseMethods(flag)
+
     @functools.lru_cache(maxsize=128)
-    def GetAllBaseMethods(self) -> List[MethodInfo]:
+    def _GetAllBaseMethods(self) -> List[MethodInfo]:
         if self._BaseTypes is None:
             self._InitBaseTypesIfNeeded()
         result = []
@@ -1234,8 +1243,11 @@ class RefType(ValueInfo):
             result.extend(baseType.GetAllMethods())
         return result
 
+    def GetAllBaseMethods(self) -> List[MethodInfo]:
+        return self._GetAllBaseMethods()
+
     @functools.lru_cache(maxsize=128)
-    def GetBaseMembers(self, flag:RefTypeFlag=RefTypeFlag.Default) -> List[MemberInfo]:
+    def _GetBaseMembers(self, flag:RefTypeFlag=RefTypeFlag.Default) -> List[MemberInfo]:
         if self._BaseTypes is None:
             self._InitBaseTypesIfNeeded()
         result = []
@@ -1243,14 +1255,20 @@ class RefType(ValueInfo):
             result.extend(baseType.GetMembers(flag))
         return result
 
+    def GetBaseMembers(self, flag:RefTypeFlag=RefTypeFlag.Default) -> List[MemberInfo]:
+        return self._GetBaseMembers(flag)
+
     @functools.lru_cache(maxsize=128)
-    def GetAllBaseMembers(self) -> List[MemberInfo]:
+    def _GetAllBaseMembers(self) -> List[MemberInfo]:
         if self._BaseTypes is None:
             self._InitBaseTypesIfNeeded()
         result = []
         for baseType in self._BaseTypes:
             result.extend(baseType.GetAllMembers())
         return result
+
+    def GetAllBaseMembers(self) -> List[MemberInfo]:
+        return self._GetAllBaseMembers()
 
     def GetFields(self, flag:RefTypeFlag=RefTypeFlag.Default) -> List[FieldInfo]:
         self._ensure_initialized()
