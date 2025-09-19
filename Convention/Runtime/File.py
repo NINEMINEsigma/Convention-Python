@@ -77,7 +77,10 @@ class ToolFile(BaseModel):
         self,
         filePath:          Union[str, Self],
         ):
-        super().__init__(OriginFullPath=os.path.abspath(os.path.expandvars(str(filePath))))
+        filePath = os.path.expandvars(str(filePath))
+        if filePath[1:].startswith(":/") or filePath[1:].startswith(":\\"):
+            filePath = os.path.abspath(filePath)
+        super().__init__(OriginFullPath=filePath)
     def __del__(self):
         pass
     def __str__(self):
@@ -89,9 +92,15 @@ class ToolFile(BaseModel):
 
     def __or__(self, other):
         if other is None:
-            return ToolFile(self.GetFullPath() if self.IsDir() else self.GetFullPath()+"\\")
+            return ToolFile(self.GetFullPath() if self.IsDir() else f"{self.GetFullPath()}\\")
         else:
-            return ToolFile(os.path.join(self.GetFullPath(), str(other)))
+            # 不使用os.path.join，因为os.path.join存在如下机制
+            # 当参数路径中存在绝对路径风格时，会忽略前面的参数，例如：
+            # os.path.join("E:/dev", "/analyze/") = "E:/analyze/"
+            # 而我们需要的是 "E:/dev/analyze"
+            first = self.GetFullPath().replace('/','\\').strip('\\')
+            second = str(other).replace('/','\\')
+            return ToolFile(f"{first}\\{second}")
     def __idiv__(self, other):
         temp = self.__or__(other)
         self.OriginFullPath = temp.GetFullPath()
@@ -109,20 +118,20 @@ class ToolFile(BaseModel):
         """
         if other is None:
             return False
-        
+
         # 获取比较对象的路径
         other_path = other.GetFullPath() if isinstance(other, ToolFile) else str(other)
         self_path = self.OriginFullPath
         
-        # 标准化路径，移除末尾的斜线
-        if self_path.endswith('/') or self_path.endswith('\\'):
-            self_path = self_path[:-1]
-        if other_path.endswith('/') or other_path.endswith('\\'):
-            other_path = other_path[:-1]
-            
-        # 使用系统的路径规范化函数进行比较
-        return os.path.normpath(self_path) == os.path.normpath(other_path)
-        
+        # 如果两个文件都存在，则直接比较路径
+        if self.Exists() == True and other.Exists() == True:
+            return self_path.strip('\\/') == other_path.strip('\\/')
+        # 如果一个文件存在另一个不被判定为存在则一定不同
+        elif self.Exists() != other.Exists():
+            return False
+        # 如果两个文件都不存在，则直接比较文件名在视正反斜杠相同的情况下比较路径字符串
+        else:
+            return self_path.replace('/','\\') == other_path.replace('/','\\')
 
     def ToPath(self):
         return Path(self.OriginFullPath)

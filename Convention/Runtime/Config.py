@@ -350,3 +350,25 @@ class DescriptiveIndicator[T]:
         self.descripion : str   = description
         self.value      : T     = value
 
+class Switch:
+    def __init__(self, value, isThougth = False) -> None:
+        self.value = value
+        self.isThougth = False
+        self.caseStats = False
+        self.result = None
+
+    def Case(self, caseValue, callback:Callable[[], Any]) -> 'Switch':
+        if self.caseStats and self.isThougth:
+            self.result = callback()
+        elif caseValue == self.value:
+            self.caseStats = True
+            self.result = callback()
+        return self
+
+    def Default(self, callback:Callable[[], Any]) -> Any:
+        if self.caseStats and self.isThougth:
+            self.result = callback()
+        elif self.caseStats == False:
+            self.caseStats = True
+            self.result = callback()
+        return self.result

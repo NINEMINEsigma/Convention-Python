@@ -237,15 +237,15 @@ pip install pyinstaller
 pyinstaller --onefile --name convention-tool your_main_script.py
 ```
 
-## 📄 许可证
+## 许可证
 
 本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。
 
-## 👨‍💻 作者
+## 作者
 
 **LiuBai** - [NINEMINEsigma](https://github.com/NINEMINEsigma)
 
-## 🔗 相关链接
+## 相关链接
 
 - [Convention-Template](https://github.com/NINEMINEsigma/Convention-Template) - 项目模板规范
 - [GitHub Issues](https://github.com/NINEMINEsigma/Convention-Python/issues) - 问题反馈
