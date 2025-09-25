@@ -5,21 +5,30 @@ from abc            import ABC, abstractmethod
 class ISignal(ABC):
     pass
 
+
 class IModel(ABC):
+    pass
+
+
+class IDataModel(ABC, IModel):
     @abstractmethod
     def Save(self) -> str:
         pass
+
     @abstractmethod
     def Load(self, data:str) -> None:
         pass
+
 
 class IConvertable[T](ABC):
     @abstractmethod
     def ConvertTo(self) -> T:
         pass
 
+
 class IConvertModel[T](IConvertable[T], IModel):
     pass
+
 
 class SingletonModel[T](IModel):
     _InjectInstances:Dict[type,Any] = {}
@@ -27,6 +36,7 @@ class SingletonModel[T](IModel):
     @staticmethod
     def GetInstance(t:Typen[T]) -> T:
         return SingletonModel._InjectInstances[t]
+    
     @staticmethod
     def SetInstance(t:Typen[T], obj:T) -> None:
         SingletonModel._InjectInstances[t] = obj
@@ -34,9 +44,6 @@ class SingletonModel[T](IModel):
     def __init__(self, t:Typen[T]) -> None:
         self.typen: type = t
 
-    @override
-    def Save(self) -> str:
-        return SingletonModel.GetInstance(self.typen).Save()
 
 class DependenceModel(IConvertModel[bool]):
     def __init__(self, queries:Sequence[IConvertModel[bool]]) -> None:
@@ -52,13 +59,9 @@ class DependenceModel(IConvertModel[bool]):
     def __iter__(self):
         return iter(self.queries)
 
-    def Load(self, data:str):
-        raise NotImplementedError()
-
-    def Save(self) -> str:
-        raise NotImplementedError()
 
 SignalListener = Callable[[ISignal], None]
+
 
 class Architecture:
     @staticmethod
@@ -78,14 +81,11 @@ class Architecture:
     @classmethod
     def InternalReset(cls) -> None:
         # Register System
-        cls._RegisterHistory.clear()
-        cls._UncompleteTargets.clear()
-        cls._Completer.clear()
-        cls._Dependences.clear()
-        cls._Childs.clear()
-        # Event Listener
+        cls._RegisteredObjects.clear()
+        cls._RegisteringRuntime.clear()
+        # Signal Listener
         cls._SignalListener.clear()
-        # Linear Chain for Dependence
+        # Timeline/Chain
         cls._TimelineQueues.clear()
         cls._TimelineContentID = 0
 
@@ -97,136 +97,79 @@ class Architecture:
 
         @override
         def ConvertTo(self) -> bool:
-            return self._queryType in Architecture._Childs
-
-        def Load(self, data:str) -> None:
-            raise NotImplementedError()
-
-        def Save(self) -> str:
-            raise NotImplementedError()
+            return self._queryType in Architecture._RegisteredObjects
     
-    _RegisterHistory:   Set[type]           = set()
-    _UncompleteTargets: Dict[type,Any]   = {}
-    _Completer:         Dict[type,Action]   = {}
-    _Dependences:       Dict[type,DependenceModel] = {}
-    _Childs:            Dict[type,Any]   = {}
-
     class Registering(IConvertModel[bool]):
-        def __init__(self,registerSlot:type) -> None:
-            self._registerSlot:type = registerSlot
-        
+        def __init__(self, registerSlot:type, target:Any, dependences:DependenceModel, action:Action) -> None:
+            self.registerSlot = registerSlot
+            self.target = target
+            self.dependences = dependences
+            self.action = action
+
         @override
         def ConvertTo(self) -> bool:
-            return self._registerSlot in Architecture._Childs
+            return self.dependences.ConvertTo()
 
-        @override
-        def Load(self,data:str) -> None:
-            raise InvalidOperationError(f"Cannot use {self.__class__.__name__} to load type")
-
-        @override
-        def Save(self) -> str:
-            return f"{Architecture.FormatType(self._registerSlot)}[{self.ConvertTo()}]"
+    _RegisteringRuntime:    Dict[type, Registering] = {}
+    _RegisteredObjects:     Dict[type, Any] = {}
 
     @classmethod
-    def _InternalRegisteringComplete(cls) -> tuple[bool,Set[type]]:
-        resultSet:  Set[type]   = set()
-        stats:      bool        = False
-        for dependence in cls._Dependences.keys():
-            if cls._Dependences[dependence].ConvertTo():
-                resultSet.add(dependence)
-                stats = True
-        return stats,resultSet
+    def _InternalRegisteringComplete(cls) -> None:
+        CompletedSet: Set[Architecture.Registering] = set()
+        for dependence in cls._RegisteringRuntime.keys():
+            if cls._RegisteringRuntime[dependence].dependences.ConvertTo():
+                CompletedSet.add(cls._RegisteringRuntime[dependence])
+        for complete in CompletedSet:
+            del cls._RegisteringRuntime[complete.registerSlot]
+            complete.action()
+            cls._RegisteredObjects[complete.registerSlot] = complete.target
+        if len(CompletedSet) > 0:
+            cls._InternalRegisteringComplete()
 
     @classmethod
-    def _InternalRegisteringUpdate(cls, internalUpdateBuffer:Set[type]):
-        for complete in internalUpdateBuffer:
-            cls._Dependences.pop(complete, None)
-        for complete in internalUpdateBuffer:
-            cls._Completer[complete]()
-            cls._Completer.pop(complete, None)
-        for complete in internalUpdateBuffer:
-            cls._Childs[complete] = cls._UncompleteTargets[complete]
-            cls._UncompleteTargets.pop(complete, None)
-
-    @classmethod
-    def Register(cls, slot:type, target:Any, completer:Action, *dependences:type) -> 'Architecture.Registering':
-        if slot in cls._RegisterHistory:
+    def Register(cls, slot:type, target:Any, action:Action, *dependences:type) -> DependenceModel:
+        if slot in cls._RegisteringRuntime:
             raise InvalidOperationError("Illegal duplicate registrations")
-        
-        cls._RegisterHistory.add(slot)
-        cls._Completer[slot] = completer
-        cls._UncompleteTargets[slot] = target
-        
-        # 过滤掉自身依赖
-        filtered_deps = [dep for dep in dependences if dep != slot]
-        type_queries = [cls.TypeQuery(dep) for dep in filtered_deps]
-        cls._Dependences[slot] = DependenceModel(type_queries)
-        
-        while True:
-            has_complete, buffer = cls._InternalRegisteringComplete()
-            if not has_complete:
-                break
-            cls._InternalRegisteringUpdate(buffer)
-        
-        return cls.Registering(slot)
-
-    @classmethod
-    def RegisterGeneric[T](cls, target:T, completer:Action, *dependences:type) -> 'Architecture.Registering':
-        return cls.Register(type(target), target, completer, *dependences)
+        cls._RegisteringRuntime[slot] = Architecture.Registering(slot, target, DependenceModel(Architecture.TypeQuery(dependence) for dependence in dependences), action)
+        cls._InternalRegisteringComplete()
+        return cls._RegisteringRuntime[slot].dependences
 
     @classmethod
     def Contains(cls, type_:type) -> bool:
-        return type_ in cls._Childs
-
-    @classmethod
-    def ContainsGeneric[T](cls) -> bool:
-        return cls.Contains(type(T))
-
-    @classmethod
-    def InternalGet(cls, type_:type) -> Any:
-        return cls._Childs[type_]
+        return type_ in cls._RegisteredObjects
 
     @classmethod
     def Get(cls, type_:type) -> Any:
-        return cls.InternalGet(type_)
+        return cls._RegisteredObjects[type_]
 
     @classmethod
-    def GetGeneric[T](cls) -> T:
-        return cls.Get(type(T))
+    def Unregister(cls, slot:type) -> bool:
+        if slot in cls._RegisteredObjects:
+            del cls._RegisteredObjects[slot]
+            return True
+        if slot in cls._RegisteringRuntime:
+            del cls._RegisteringRuntime[slot]
+            return True
+        return False
 
     #endregion
 
     #region Signal & Update
 
-    _SignalListener: Dict[type, Set[SignalListener]] = {}
-
-    class Listening:
-        def __init__(self, action:SignalListener, type_:type):
-            self._action = action
-            self._type = type_
-
-        def StopListening(self):
-            if self._type in Architecture._SignalListener:
-                Architecture._SignalListener[self._type].discard(self._action)
+    _SignalListener: Dict[type, List[SignalListener]] = {}
 
     @classmethod
-    def AddListenerGeneric[Signal](cls, slot:type, listener:SignalListener) -> 'Architecture.Listening':
+    def AddListener(cls, slot:type, listener:SignalListener) -> None:
         if slot not in cls._SignalListener:
-            cls._SignalListener[slot] = set()
+            cls._SignalListener[slot] = []
         
-        def action(signal:ISignal):
-            if isinstance(signal, slot):
-                listener(signal)
-        
-        result = cls.Listening(action, slot)
-        cls._SignalListener[slot].add(action)
-        return result
+        cls._SignalListener[slot].append(listener)
 
     @classmethod
     def SendMessage(cls, slot:type, signal:ISignal):
         if slot in cls._SignalListener:
-            for action in cls._SignalListener[slot]:
-                action(signal)
+            for listener in cls._SignalListener[slot]:
+                listener(signal)
 
     #endregion
 
@@ -284,7 +227,4 @@ class Architecture:
         cls._TimelineQueues[timeline_id].context = 0
 
     #endregion
-
-
-
 
