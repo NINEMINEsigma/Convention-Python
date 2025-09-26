@@ -5,7 +5,6 @@ import                         urllib.parse
 import                         urllib.request
 import                         urllib.error
 import                         asyncio
-import                         aiohttp
 import                         os
 import                         re
 from typing             import *

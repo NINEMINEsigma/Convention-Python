@@ -5,10 +5,35 @@ import                     sys
 import                     threading
 import                     traceback
 import                     datetime
-import                     platform
-import                     time
-import                     os
-from colorama       import Fore as ConsoleFrontColor, Back as ConsoleBackgroundColor, Style as ConsoleStyle
+try:
+    from colorama       import Fore as ConsoleFrontColor, Back as ConsoleBackgroundColor, Style as ConsoleStyle
+except:
+    print("colorama is not installed, using default colors")
+    class ConsoleFrontColor:
+        RED = ""
+        GREEN = ""
+        YELLOW = ""
+        BLUE = ""
+        MAGENTA = ""
+        CYAN = ""
+        WHITE = ""
+        RESET = ""
+    class ConsoleBackgroundColor:
+        RED = ""
+        GREEN = ""
+        YELLOW = ""
+        BLUE = ""
+        MAGENTA = ""
+        CYAN = ""
+        WHITE = ""
+        RESET = ""
+    class ConsoleStyle:
+        RESET = ""
+        BOLD = ""
+        DIM = ""
+        UNDERLINE = ""
+        REVERSE = ""
+        HIDDEN = ""
 
 class NotImplementedError(Exception):
     def __init__(self, message:Optional[str]=None) -> None:

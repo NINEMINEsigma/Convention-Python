@@ -53,6 +53,7 @@ class GlobalConfig:
         
         # 检查配置文件，不存在则生成空配置
         self._data_pair: Dict[str, Any] = {}
+        self._data_find: Dict[str, Any] = {}
         self._const_config_file = ConstConfigFile
         config_file = self.ConfigFile
         
@@ -160,7 +161,8 @@ class GlobalConfig:
         """保存配置到文件"""
         config = self.ConfigFile
         config.SaveAsJson({
-            "properties": self._data_pair
+            "properties": self._data_pair,
+            "find": self._data_find
         })
         return self
     
@@ -232,6 +234,7 @@ class GlobalConfig:
             return self._data_pair[key]
         else:
             self.LogPropertyNotFound(key, default=default)
+            self._data_find[key] = default
             return default
 
 
