@@ -1008,32 +1008,4 @@ class ToolFile(BaseModel):
             是否隐藏
         """
         return self.get_permissions()['hidden']
-
-def split_elements(
-    file:               Union[ToolFile, str],
-    *,
-    ratios:             List[float]                                 = [1,1],
-    pr:                 Optional[Callable[[ToolFile], bool]]       = None,
-    shuffler:           Optional[Callable[[List[ToolFile]], None]] = None,
-    output_dirs:        Optional[List[ToolFile]]                   = None,
-    output_must_exist:  bool                                        = True,
-    output_callback:    Optional[Callable[[ToolFile], None]]       = None
-    ) -> List[List[ToolFile]]:
-    result:                 List[List[ToolFile]]   = tool_split_elements(WrapperFile(file).dir_tool_file_iter(),
-                                      ratios=ratios,
-                                      pr=pr,
-                                      shuffler=shuffler)
-    if output_dirs is None:
-        return result
-    for i in range(min(len(output_dirs), len(result))):
-        output_dir:         ToolFile               = output_dirs[i]
-        if output_dir.IsDir() is False:
-            raise Exception("Outputs must be directory")
-        if output_must_exist:
-            output_dir.must_exists_as_new()
-        for file in result[i]:
-            current = output_dirs[i].MakeFileInside(file)
-            if output_callback:
-                output_callback(current)
-
-    return result
+        
