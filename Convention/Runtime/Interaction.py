@@ -1,21 +1,20 @@
-from .Config import *
-from .File import ToolFile
-from .Web import ToolURL
-import json
-import urllib.parse
-import urllib.request
-import urllib.error
-import asyncio
-import os
-import re
-from typing import *
-from pydantic import BaseModel
+from .Config    import *
+from .File      import ToolFile
+from .Web       import ToolURL
+import                 json
+import                 urllib.parse
+import                 os
+from typing     import *
 
 try:
-    import aiohttp
+    from pydantic   import BaseModel, PrivateAttr, Field
+except ImportError as e:
+    ImportingThrow(e, "Interaction", ["pydantic"])
+
+try:
     import aiofiles
 except ImportError as e:
-    ImportingThrow(e, "Interaction", ["aiohttp", "aiofiles"])
+    ImportingThrow(e, "Interaction", ["aiofiles"])
 
 
 class InteractionError(Exception):
@@ -41,38 +40,30 @@ class SaveError(InteractionError):
 class Interaction(BaseModel):
     """统一的文件交互类，自适应处理本地文件和网络文件"""
     
-    path: str
-    _is_url: bool = False
-    _is_local: bool = False
-    _tool_file: Optional[ToolFile] = None
-    _tool_url: Optional[ToolURL] = None
+    originPath: str
+    _is_url:    bool                = PrivateAttr(False)
+    _is_local:  bool                = PrivateAttr(False)
+    _tool_file: Optional[ToolFile]  = PrivateAttr(None)
+    _tool_url:  Optional[ToolURL]   = PrivateAttr(None)
     
-    def __init__(self, path: Union[str, 'Interaction', ToolFile, ToolURL]):
+    def __init__(self, path):
         """
         从路径字符串创建对象，自动识别本地文件或网络URL
         
         Args:
-            path: 路径字符串、Interaction对象、ToolFile对象或ToolURL对象
+            path: 路径字符串或是可以转换为路径字符串的对象
         """
-        if isinstance(path, Interaction):
-            path = path.path
-        elif isinstance(path, ToolFile):
-            path = path.GetFullPath()
-        elif isinstance(path, ToolURL):
-            path = path.url
-        
-        path_str = str(path)
-        super().__init__(path=path_str)
+        super().__init__(originPath=str(path))
         
         # 自动识别路径类型
         self._detect_path_type()
     
     def _detect_path_type(self):
         """自动检测路径类型"""
-        path = self.path.strip()
+        path = self.originPath.strip()
         
         # 检查是否为HTTP/HTTPS URL
-        if path.startswith(('http://', 'https://')):
+        if path.startswith(('http://', 'https://', 'file://')):
             self._is_url = True
             self._is_local = False
             self._tool_url = ToolURL(path)
@@ -89,7 +80,7 @@ class Interaction(BaseModel):
             self._is_url = True
             self._is_local = False
             self._tool_url = ToolURL(full_url)
-            self.path = full_url
+            self.originPath = full_url
             return
         
         # 检查是否为绝对路径或相对路径
@@ -109,7 +100,7 @@ class Interaction(BaseModel):
     
     def __str__(self) -> str:
         """隐式字符串转换"""
-        return self.path
+        return self.originPath
     
     def __bool__(self) -> bool:
         """隐式布尔转换，检查路径是否有效"""
@@ -194,7 +185,7 @@ class Interaction(BaseModel):
     def Open(self, path: str) -> 'Interaction':
         """在当前对象上打开新路径"""
         new_obj = Interaction(path)
-        self.path = new_obj.path
+        self.originPath = new_obj.originPath
         self._is_url = new_obj._is_url
         self._is_local = new_obj._is_local
         self._tool_file = new_obj._tool_file
@@ -211,11 +202,11 @@ class Interaction(BaseModel):
         """
         if self._is_url:
             if not self._tool_url or not self._tool_url.IsValid:
-                raise PathValidationError(f"Invalid URL: {self.path}")
+                raise PathValidationError(f"Invalid URL: {self.originPath}")
             return self._tool_url.LoadAsText()
         else:
             if not self._tool_file or not self._tool_file.Exists():
-                raise PathValidationError(f"File not found: {self.path}")
+                raise PathValidationError(f"File not found: {self.originPath}")
             return self._tool_file.LoadAsText()
     
     def LoadAsBinary(self) -> bytes:
@@ -227,11 +218,11 @@ class Interaction(BaseModel):
         """
         if self._is_url:
             if not self._tool_url or not self._tool_url.IsValid:
-                raise PathValidationError(f"Invalid URL: {self.path}")
+                raise PathValidationError(f"Invalid URL: {self.originPath}")
             return self._tool_url.LoadAsBinary()
         else:
             if not self._tool_file or not self._tool_file.Exists():
-                raise PathValidationError(f"File not found: {self.path}")
+                raise PathValidationError(f"File not found: {self.originPath}")
             return self._tool_file.LoadAsBinary()
     
     def LoadAsJson(self, model_type: Optional[type] = None) -> Any:
@@ -246,11 +237,11 @@ class Interaction(BaseModel):
         """
         if self._is_url:
             if not self._tool_url or not self._tool_url.IsValid:
-                raise PathValidationError(f"Invalid URL: {self.path}")
+                raise PathValidationError(f"Invalid URL: {self.originPath}")
             return self._tool_url.LoadAsJson(model_type)
         else:
             if not self._tool_file or not self._tool_file.Exists():
-                raise PathValidationError(f"File not found: {self.path}")
+                raise PathValidationError(f"File not found: {self.originPath}")
             json_data = self._tool_file.LoadAsJson()
             if model_type and issubclass(model_type, BaseModel):
                 return model_type.model_validate(json_data)
@@ -266,11 +257,11 @@ class Interaction(BaseModel):
         """
         if self._is_url:
             if not self._tool_url or not self._tool_url.IsValid:
-                raise PathValidationError(f"Invalid URL: {self.path}")
+                raise PathValidationError(f"Invalid URL: {self.originPath}")
             return await self._tool_url.LoadAsTextAsync()
         else:
             if not self._tool_file or not self._tool_file.Exists():
-                raise PathValidationError(f"File not found: {self.path}")
+                raise PathValidationError(f"File not found: {self.originPath}")
             # 异步读取本地文件
             async with aiofiles.open(self._tool_file.GetFullPath(), 'r', encoding='utf-8') as f:
                 return await f.read()
@@ -284,11 +275,11 @@ class Interaction(BaseModel):
         """
         if self._is_url:
             if not self._tool_url or not self._tool_url.IsValid:
-                raise PathValidationError(f"Invalid URL: {self.path}")
+                raise PathValidationError(f"Invalid URL: {self.originPath}")
             return await self._tool_url.LoadAsBinaryAsync()
         else:
             if not self._tool_file or not self._tool_file.Exists():
-                raise PathValidationError(f"File not found: {self.path}")
+                raise PathValidationError(f"File not found: {self.originPath}")
             # 异步读取本地文件
             async with aiofiles.open(self._tool_file.GetFullPath(), 'rb') as f:
                 return await f.read()
@@ -305,11 +296,11 @@ class Interaction(BaseModel):
         """
         if self._is_url:
             if not self._tool_url or not self._tool_url.IsValid:
-                raise PathValidationError(f"Invalid URL: {self.path}")
+                raise PathValidationError(f"Invalid URL: {self.originPath}")
             return await self._tool_url.LoadAsJsonAsync(model_type)
         else:
             if not self._tool_file or not self._tool_file.Exists():
-                raise PathValidationError(f"File not found: {self.path}")
+                raise PathValidationError(f"File not found: {self.originPath}")
             # 异步读取本地JSON文件
             text_content = await self.LoadAsTextAsync()
             try:
@@ -318,10 +309,10 @@ class Interaction(BaseModel):
                     return model_type.model_validate(json_data)
                 return json_data
             except json.JSONDecodeError as e:
-                raise LoadError(f"Failed to parse JSON from {self.path}: {str(e)}")
+                raise LoadError(f"Failed to parse JSON from {self.originPath}: {str(e)}")
     
     # 同步保存方法
-    def SaveAsText(self, content: str, local_path: Optional[str] = None) -> Union[ToolFile, 'Interaction']:
+    def SaveAsText(self, content: str, local_path: Optional[str] = None) -> 'Interaction':
         """
         同步保存为文本
         
@@ -339,15 +330,14 @@ class Interaction(BaseModel):
             file_obj = ToolFile(local_path)
             file_obj.TryCreateParentPath()
             file_obj.SaveAsText(content)
-            return file_obj
         else:
             if not self._tool_file:
-                raise PathValidationError(f"Invalid file path: {self.path}")
+                raise PathValidationError(f"Invalid file path: {self.originPath}")
             self._tool_file.TryCreateParentPath()
             self._tool_file.SaveAsText(content)
-            return self
+        return self
     
-    def SaveAsBinary(self, content: bytes, local_path: Optional[str] = None) -> Union[ToolFile, 'Interaction']:
+    def SaveAsBinary(self, content: bytes, local_path: Optional[str] = None) -> 'Interaction':
         """
         同步保存为二进制
         
@@ -365,15 +355,14 @@ class Interaction(BaseModel):
             file_obj = ToolFile(local_path)
             file_obj.TryCreateParentPath()
             file_obj.SaveAsBinary(content)
-            return file_obj
         else:
             if not self._tool_file:
-                raise PathValidationError(f"Invalid file path: {self.path}")
+                raise PathValidationError(f"Invalid file path: {self.originPath}")
             self._tool_file.TryCreateParentPath()
             self._tool_file.SaveAsBinary(content)
-            return self
+        return self
     
-    def SaveAsJson(self, data: Any, local_path: Optional[str] = None) -> Union[ToolFile, 'Interaction']:
+    def SaveAsJson(self, data: Any, local_path: Optional[str] = None) -> 'Interaction':
         """
         同步保存为JSON
         
@@ -391,16 +380,15 @@ class Interaction(BaseModel):
             file_obj = ToolFile(local_path)
             file_obj.TryCreateParentPath()
             file_obj.SaveAsJson(data)
-            return file_obj
         else:
             if not self._tool_file:
-                raise PathValidationError(f"Invalid file path: {self.path}")
+                raise PathValidationError(f"Invalid file path: {self.originPath}")
             self._tool_file.TryCreateParentPath()
             self._tool_file.SaveAsJson(data)
-            return self
+        return self
     
     # 异步保存方法
-    async def SaveAsTextAsync(self, content: str, local_path: Optional[str] = None) -> Union[ToolFile, 'Interaction']:
+    async def SaveAsTextAsync(self, content: str, local_path: Optional[str] = None) -> 'Interaction':
         """
         异步保存为文本
         
@@ -419,16 +407,15 @@ class Interaction(BaseModel):
             file_obj.TryCreateParentPath()
             async with aiofiles.open(file_obj.GetFullPath(), 'w', encoding='utf-8') as f:
                 await f.write(content)
-            return file_obj
         else:
             if not self._tool_file:
-                raise PathValidationError(f"Invalid file path: {self.path}")
+                raise PathValidationError(f"Invalid file path: {self.originPath}")
             self._tool_file.TryCreateParentPath()
             async with aiofiles.open(self._tool_file.GetFullPath(), 'w', encoding='utf-8') as f:
                 await f.write(content)
-            return self
+        return self
     
-    async def SaveAsBinaryAsync(self, content: bytes, local_path: Optional[str] = None) -> Union[ToolFile, 'Interaction']:
+    async def SaveAsBinaryAsync(self, content: bytes, local_path: Optional[str] = None) -> 'Interaction':
         """
         异步保存为二进制
         
@@ -447,16 +434,15 @@ class Interaction(BaseModel):
             file_obj.TryCreateParentPath()
             async with aiofiles.open(file_obj.GetFullPath(), 'wb') as f:
                 await f.write(content)
-            return file_obj
         else:
             if not self._tool_file:
-                raise PathValidationError(f"Invalid file path: {self.path}")
+                raise PathValidationError(f"Invalid file path: {self.originPath}")
             self._tool_file.TryCreateParentPath()
             async with aiofiles.open(self._tool_file.GetFullPath(), 'wb') as f:
                 await f.write(content)
-            return self
+        return self
     
-    async def SaveAsJsonAsync(self, data: Any, local_path: Optional[str] = None) -> Union[ToolFile, 'Interaction']:
+    async def SaveAsJsonAsync(self, data: Any, local_path: Optional[str] = None) -> 'Interaction':
         """
         异步保存为JSON
         
@@ -554,7 +540,7 @@ class Interaction(BaseModel):
         return await self._tool_url.PostAsync(callback, form_data)
     
     # 便利方法
-    def Save(self, local_path: Optional[str] = None) -> Union[ToolFile, 'Interaction']:
+    def Save(self, local_path: Optional[str] = None) -> 'Interaction':
         """
         自动选择格式保存
         
@@ -564,16 +550,15 @@ class Interaction(BaseModel):
         Returns:
             保存的文件对象或Interaction对象
         """
+        # 对于本地文件，直接返回自身（已存在）
         if self._is_url:
             # 对于URL，先下载内容再保存
             if not self._tool_url:
-                raise PathValidationError(f"Invalid URL: {self.path}")
-            return self._tool_url.Save(local_path)
-        else:
-            # 对于本地文件，直接返回自身（已存在）
-            return self
+                raise PathValidationError(f"Invalid URL: {self.originPath}")
+            self._tool_url.Save(local_path)
+        return self
     
-    async def SaveAsync(self, local_path: Optional[str] = None) -> Union[ToolFile, 'Interaction']:
+    async def SaveAsync(self, local_path: Optional[str] = None) -> 'Interaction':
         """
         异步自动选择格式保存
         
@@ -583,10 +568,11 @@ class Interaction(BaseModel):
         Returns:
             保存的文件对象或Interaction对象
         """
+        # 对于本地文件，直接返回自身（已存在）
         if self._is_url:
             # 对于URL，异步下载内容
             if not self._tool_url:
-                raise PathValidationError(f"Invalid URL: {self.path}")
+                raise PathValidationError(f"Invalid URL: {self.originPath}")
             
             if local_path is None:
                 local_path = self.GetFilename() or "downloaded_file"
@@ -605,13 +591,14 @@ class Interaction(BaseModel):
                     content = await self.LoadAsBinaryAsync()
                     await self.SaveAsBinaryAsync(content, local_path)
                 
-                return file_obj
             except Exception as e:
-                raise SaveError(f"Failed to save {self.path}: {str(e)}")
-        else:
-            # 对于本地文件，直接返回自身
-            return self
+                raise SaveError(f"Failed to save {self.originPath}: {str(e)}")
+        return self
     
+    def Downloadable(self) -> bool:
+        """检查是否可下载"""
+        return self._is_url and self._tool_url.IsValid if self._tool_url else False
+
     def Download(self, local_path: Optional[str] = None) -> ToolFile:
         """
         下载文件（仅对URL有效）
@@ -622,10 +609,10 @@ class Interaction(BaseModel):
         Returns:
             下载的文件对象
         """
-        if not self._is_url:
+        if self._is_local:
             raise InteractionError("Download method is only available for URLs")
         if not self._tool_url:
-            raise PathValidationError(f"Invalid URL: {self.path}")
+            raise PathValidationError(f"Invalid URL: {self.originPath}")
         return self._tool_url.Download(local_path)
     
     async def DownloadAsync(self, local_path: Optional[str] = None) -> ToolFile:
@@ -638,13 +625,13 @@ class Interaction(BaseModel):
         Returns:
             下载的文件对象
         """
-        if not self._is_url:
-            raise InteractionError("Download method is only available for URLs")
+        if self._is_local:
+            raise InteractionError("DownloadAsync method is only available for URLs")
         if not self._tool_url:
-            raise PathValidationError(f"Invalid URL: {self.path}")
+            raise PathValidationError(f"Invalid URL: {self.originPath}")
         return await self._tool_url.DownloadAsync(local_path)
     
-    def Copy(self, target_path: Optional[Union[str, ToolFile, 'Interaction']] = None) -> 'Interaction':
+    def Copy(self, target_path) -> ToolFile:
         """
         复制文件（仅对本地文件有效）
         
@@ -657,20 +644,10 @@ class Interaction(BaseModel):
         if not self._is_local:
             raise InteractionError("Copy method is only available for local files")
         if not self._tool_file:
-            raise PathValidationError(f"Invalid file path: {self.path}")
-        
-        if target_path is None:
-            copied_file = self._tool_file.Copy()
-        else:
-            if isinstance(target_path, Interaction):
-                target_path = target_path.path
-            elif isinstance(target_path, ToolFile):
-                target_path = target_path.GetFullPath()
-            copied_file = self._tool_file.Copy(str(target_path))
-        
-        return Interaction(copied_file.GetFullPath())
+            raise PathValidationError(f"Invalid file path: {self.originPath}")
+        return self._tool_file.Copy(str(target_path))
     
-    def Move(self, target_path: Union[str, ToolFile, 'Interaction']) -> 'Interaction':
+    def Move(self, target_path) -> ToolFile:
         """
         移动文件（仅对本地文件有效）
         
@@ -683,16 +660,8 @@ class Interaction(BaseModel):
         if not self._is_local:
             raise InteractionError("Move method is only available for local files")
         if not self._tool_file:
-            raise PathValidationError(f"Invalid file path: {self.path}")
-        
-        if isinstance(target_path, Interaction):
-            target_path = target_path.path
-        elif isinstance(target_path, ToolFile):
-            target_path = target_path.GetFullPath()
-        
-        self._tool_file.Move(str(target_path))
-        self.path = self._tool_file.GetFullPath()
-        return self
+            raise PathValidationError(f"Invalid file path: {self.originPath}")
+        return self._tool_file.Move(str(target_path))
     
     def Remove(self) -> 'Interaction':
         """
@@ -704,7 +673,7 @@ class Interaction(BaseModel):
         if not self._is_local:
             raise InteractionError("Remove method is only available for local files")
         if not self._tool_file:
-            raise PathValidationError(f"Invalid file path: {self.path}")
+            raise PathValidationError(f"Invalid file path: {self.originPath}")
         
         self._tool_file.Remove()
         return self
@@ -728,7 +697,7 @@ class Interaction(BaseModel):
         if not self._is_local:
             raise InteractionError("GetSize method is only available for local files")
         if not self._tool_file or not self._tool_file.Exists():
-            raise PathValidationError(f"File not found: {self.path}")
+            raise PathValidationError(f"File not found: {self.originPath}")
         
         return self._tool_file.GetSize()
     
@@ -757,7 +726,7 @@ class Interaction(BaseModel):
         """
         if self._is_local:
             if not self._tool_file:
-                raise PathValidationError(f"Invalid file path: {self.path}")
+                raise PathValidationError(f"Invalid file path: {self.originPath}")
             parent_dir = self._tool_file.GetParentDir()
             return Interaction(parent_dir.GetFullPath())
         else:
@@ -767,8 +736,8 @@ class Interaction(BaseModel):
     
     def ToString(self) -> str:
         """获取完整路径"""
-        return self.path
+        return self.originPath
     
     def GetFullPath(self) -> str:
         """获取完整路径"""
-        return self.path
+        return self.originPath
