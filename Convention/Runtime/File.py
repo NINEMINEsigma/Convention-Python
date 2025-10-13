@@ -251,65 +251,65 @@ class ToolFile(BaseModel):
     def LoadAsModel(self, model:type["BaseModel"]) -> "BaseModel":
         return model.model_validate(self.LoadAsJson())
 
-    def ReadLines(self):
-        with open(self.OriginFullPath, 'r') as f:
+    def ReadLines(self, **kwargs):
+        with open(self.OriginFullPath, 'r', **kwargs) as f:
             while True:
                 line = f.readline()
                 if not line or line == '':
                     break
                 yield line
-    async def ReadLinesAsync(self):
+    async def ReadLinesAsync(self, **kwargs):
         import aiofiles
-        async with aiofiles.open(self.OriginFullPath, 'r') as f:
+        async with aiofiles.open(self.OriginFullPath, 'r', **kwargs) as f:
             while True:
                 line = await f.readline()
                 if not line or line == '':
                     break
                 yield line
-    def ReadBytes(self):
-        with open(self.OriginFullPath, 'rb') as f:
+    def ReadBytes(self, **kwargs):
+        with open(self.OriginFullPath, 'rb', **kwargs) as f:
             while True:
                 data = f.read(1024)
                 if not data or data == '':
                     break
                 yield data
-    async def ReadBytesAsync(self):
+    async def ReadBytesAsync(self, **kwargs):
         import aiofiles
-        async with aiofiles.open(self.OriginFullPath, 'rb') as f:
+        async with aiofiles.open(self.OriginFullPath, 'rb', **kwargs) as f:
             while True:
                 data = await f.read(1024)
                 if not data or data == '':
                     break
                 yield data
 
-    def WriteBytes(self, data:bytes):
-        with open(self.OriginFullPath, 'wb') as f:
+    def WriteBytes(self, data:bytes, **kwargs):
+        with open(self.OriginFullPath, 'wb', **kwargs) as f:
             f.write(data)
-    async def WriteBytesAsync(self, data:bytes):
+    async def WriteBytesAsync(self, data:bytes, **kwargs):
         import aiofiles
-        async with aiofiles.open(self.OriginFullPath, 'wb') as f:
+        async with aiofiles.open(self.OriginFullPath, 'wb', **kwargs) as f:
             await f.write(data)
-    def WriteLines(self, data:List[str]):
-        with open(self.OriginFullPath, 'w') as f:
+    def WriteLines(self, data:List[str], **kwargs):
+        with open(self.OriginFullPath, 'w', **kwargs) as f:
             f.writelines(data)
-    async def WriteLinesAsync(self, data:List[str]):
+    async def WriteLinesAsync(self, data:List[str], **kwargs):
         import aiofiles
-        async with aiofiles.open(self.OriginFullPath, 'w') as f:
+        async with aiofiles.open(self.OriginFullPath, 'w', **kwargs) as f:
             await f.writelines(data)
     
-    def AppendText(self, data:str):
-        with open(self.OriginFullPath, 'a') as f:
+    def AppendText(self, data:str, **kwargs):
+        with open(self.OriginFullPath, 'a', **kwargs) as f:
             f.write(data)
-    async def AppendTextAsync(self, data:str):
+    async def AppendTextAsync(self, data:str, **kwargs):
         import aiofiles
-        async with aiofiles.open(self.OriginFullPath, 'a') as f:
+        async with aiofiles.open(self.OriginFullPath, 'a', **kwargs) as f:
             await f.write(data)
-    def AppendBytes(self, data:bytes):
-        with open(self.OriginFullPath, 'ab') as f:
+    def AppendBytes(self, data:bytes, **kwargs):
+        with open(self.OriginFullPath, 'ab', **kwargs) as f:
             f.write(data)
-    async def AppendBytesAsync(self, data:bytes):
+    async def AppendBytesAsync(self, data:bytes, **kwargs):
         import aiofiles
-        async with aiofiles.open(self.OriginFullPath, 'ab') as f:
+        async with aiofiles.open(self.OriginFullPath, 'ab', **kwargs) as f:
             await f.write(data)
 
     def SaveAsJson(self, json_data):
