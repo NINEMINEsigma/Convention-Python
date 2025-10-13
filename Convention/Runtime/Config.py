@@ -8,7 +8,7 @@ import                     datetime
 try:
     from colorama       import Fore as ConsoleFrontColor, Back as ConsoleBackgroundColor, Style as ConsoleStyle
 except:
-    print("colorama is not installed, using default colors")
+    print("colorama is not installed")
     class ConsoleFrontColor:
         RED = ""
         GREEN = ""
@@ -60,7 +60,7 @@ def GetInternalDebug() -> bool:
     global INTERNAL_DEBUG
     return INTERNAL_DEBUG
 
-def print_colorful(color:str, *args, is_reset:bool=True, **kwargs):
+def PrintColorful(color:str, *args, is_reset:bool=True, **kwargs):
     with lock_guard():
         if is_reset:
             print(color,*args,ConsoleStyle.RESET_ALL, **kwargs)

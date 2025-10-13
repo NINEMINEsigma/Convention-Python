@@ -180,14 +180,14 @@ class ESReader(BaseModel):
         '''
         #module_name, _, class_name = type_label.split(",")[0].strip().rpartition('.')
         #if GetInternalEasySaveDebug():
-        #    print_colorful(ConsoleFrontColor.YELLOW, f"Prase __type label: {ConsoleFrontColor.RESET}{type_label}"\
+        #    PrintColorful(ConsoleFrontColor.YELLOW, f"Prase __type label: {ConsoleFrontColor.RESET}{type_label}"\
         #        f"{ConsoleFrontColor.YELLOW}, module_name: {ConsoleFrontColor.RESET}{module_name}"\
         #        f"{ConsoleFrontColor.YELLOW}, class_name: {ConsoleFrontColor.RESET}{class_name}")
         #typen_to = try_to_type(class_name, module_name=module_name) or to_type(class_name)
         #return TypeManager.GetInstance().CreateOrGetRefType(typen_to)
         typen, assembly_name = ReadAssemblyTypen(type_label)
         if GetInternalEasySaveDebug():
-            print_colorful(ConsoleFrontColor.YELLOW, f"Prase __type label: {ConsoleFrontColor.RESET}{type_label}"\
+            PrintColorful(ConsoleFrontColor.YELLOW, f"Prase __type label: {ConsoleFrontColor.RESET}{type_label}"\
                 f"{ConsoleFrontColor.YELLOW}, typen: {ConsoleFrontColor.RESET}{typen}"\
                 f"{ConsoleFrontColor.YELLOW}, assembly_name: {ConsoleFrontColor.RESET}{assembly_name}")
         return TypeManager.GetInstance().CreateOrGetRefType(typen)
@@ -235,7 +235,7 @@ class ESReader(BaseModel):
             if rtype is None:
                 raise ValueError(f"{ConsoleFrontColor.RED}当前层不包含类型信息: {ConsoleFrontColor.RESET}{LimitStringLength(str(layer), 100)}")
             if GetInternalEasySaveDebug():
-                print_colorful(ConsoleFrontColor.YELLOW, f"layer: {ConsoleFrontColor.RESET}{LimitStringLength(str(layer), 100)}"\
+                PrintColorful(ConsoleFrontColor.YELLOW, f"layer: {ConsoleFrontColor.RESET}{LimitStringLength(str(layer), 100)}"\
                     f"{ConsoleFrontColor.YELLOW}, rtype: {ConsoleFrontColor.RESET}{rtype.ToString()}")
 
             # 处理值类型
@@ -278,7 +278,7 @@ class ESReader(BaseModel):
             else:
                 rinstance = rtype.CreateInstance()
                 if GetInternalEasySaveDebug():
-                    print_colorful(ConsoleFrontColor.YELLOW, f"rinstance rtype target: {ConsoleFrontColor.RESET}"\
+                    PrintColorful(ConsoleFrontColor.YELLOW, f"rinstance rtype target: {ConsoleFrontColor.RESET}"\
                         f"{rtype.Print2Str(verbose=True, flags=RefTypeFlag.Field|RefTypeFlag.Instance|RefTypeFlag.Public)}")
                 fields:List[FieldInfo] = self._GetFields(rtype)
                 for field in fields:
@@ -289,19 +289,19 @@ class ESReader(BaseModel):
                         if field.FieldType == list and field.ValueType.IsGeneric:
                             field_rtype = TypeManager.GetInstance().CreateOrGetRefType(ListIndictaor(field.ValueType.GenericArgs[0]))
                             if GetInternalEasySaveDebug():
-                                print_colorful(ConsoleFrontColor.YELLOW, f"field: {ConsoleFrontColor.RESET}{field.FieldName}"\
+                                PrintColorful(ConsoleFrontColor.YELLOW, f"field: {ConsoleFrontColor.RESET}{field.FieldName}"\
                                     f"{ConsoleFrontColor.YELLOW}, field_rtype: {ConsoleFrontColor.RESET}List<"\
                                     f"{field_rtype.GenericArgs[0]}>")
                         elif field.FieldType == set and field.ValueType.IsGeneric:
                             field_rtype = TypeManager.GetInstance().CreateOrGetRefType(SetIndictaor(field.ValueType.GenericArgs[0]))
                             if GetInternalEasySaveDebug():
-                                print_colorful(ConsoleFrontColor.YELLOW, f"field: {ConsoleFrontColor.RESET}{field.FieldName}"\
+                                PrintColorful(ConsoleFrontColor.YELLOW, f"field: {ConsoleFrontColor.RESET}{field.FieldName}"\
                                     f"{ConsoleFrontColor.YELLOW}, field_rtype: {ConsoleFrontColor.RESET}Set<"\
                                     f"{field_rtype.GenericArgs[0]}>")
                         elif field.FieldType == tuple and field.ValueType.IsGeneric:
                             field_rtype = TypeManager.GetInstance().CreateOrGetRefType(TupleIndictaor(field.ValueType.GenericArgs[0]))
                             if GetInternalEasySaveDebug():
-                                print_colorful(ConsoleFrontColor.YELLOW, f"field: {ConsoleFrontColor.RESET}{field.FieldName}"\
+                                PrintColorful(ConsoleFrontColor.YELLOW, f"field: {ConsoleFrontColor.RESET}{field.FieldName}"\
                                     f"{ConsoleFrontColor.YELLOW}, field_rtype: {ConsoleFrontColor.RESET}Tuple<"\
                                     f"{field_rtype.GenericArgs[0]}>")
                         elif field.FieldType == dict and field.ValueType.IsGeneric:
@@ -309,13 +309,13 @@ class ESReader(BaseModel):
                                 DictIndictaor(field.ValueType.GenericArgs[0], field.ValueType.GenericArgs[1])
                                 )
                             if GetInternalEasySaveDebug():
-                                print_colorful(ConsoleFrontColor.YELLOW, f"field: {ConsoleFrontColor.RESET}{field.FieldName}"\
+                                PrintColorful(ConsoleFrontColor.YELLOW, f"field: {ConsoleFrontColor.RESET}{field.FieldName}"\
                                     f"{ConsoleFrontColor.YELLOW}, field_rtype: {ConsoleFrontColor.RESET}Dict<"\
                                     f"{field_rtype.GenericArgs[0]}, {field_rtype.GenericArgs[1]}>")
                         else:
                             field_rtype = TypeManager.GetInstance().CreateOrGetRefType(field.FieldType)
                             if GetInternalEasySaveDebug():
-                                print_colorful(ConsoleFrontColor.YELLOW, f"field: {ConsoleFrontColor.RESET}{field.FieldName}"\
+                                PrintColorful(ConsoleFrontColor.YELLOW, f"field: {ConsoleFrontColor.RESET}{field.FieldName}"\
                                     f"{ConsoleFrontColor.YELLOW}, field_rtype: {ConsoleFrontColor.RESET}{field_rtype.RealType}"\
                                     f"<{field_rtype.GenericArgs}>")
                         field.SetValue(rinstance, dfs(field_rtype, layer[field.FieldName]))

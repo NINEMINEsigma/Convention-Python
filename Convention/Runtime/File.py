@@ -1,10 +1,7 @@
 from .Config            import *
 import                         json
 import                         shutil
-import pandas           as     pd
 import                         os
-import                         sys
-import                         pickle
 import                         zipfile
 import                         tarfile
 import                         base64
@@ -14,21 +11,6 @@ import                         datetime
 import                         stat
 from typing             import *
 from pathlib            import Path
-try:
-    from pydub              import AudioSegment
-except ImportError as e:
-    ImportingThrow(e, "File", ["pydub"])
-try:
-    from PIL                import Image, ImageFile
-except ImportError as e:
-    ImportingThrow(e, "File", ["Pillow"])
-try:
-    from docx               import Document
-    from docx.document      import Document as DocumentObject
-except ImportError as e:
-    ImportingThrow(e, "File", ["python-docx"])
-
-from .String            import Bytes2String
 
 def GetExtensionName(file:str):
         return os.path.splitext(file)[1][1:]
@@ -67,8 +49,10 @@ class PermissionError(FileOperationError):
     """权限操作异常"""
     pass
 
-from pydantic import BaseModel, GetCoreSchemaHandler, Field
-from pydantic_core import core_schema
+try:
+    from pydantic import BaseModel
+except ImportError as e:
+    ImportingThrow(e, "File", ["pydantic"])
 
 class ToolFile(BaseModel):
     OriginFullPath:str
@@ -100,6 +84,10 @@ class ToolFile(BaseModel):
             # 而我们需要的是 "E:/dev/analyze"
             first = self.GetFullPath().replace('/','\\').strip('\\')
             second = str(other).replace('/','\\')
+            if first == "./":
+                return ToolFile(f"{second}") 
+            elif first == "../":
+                first = ToolFile(f"{os.path.abspath(first)}").BackToParentDir()
             return ToolFile(f"{first}\\{second}")
     def __idiv__(self, other):
         temp = self.__or__(other)
@@ -192,16 +180,32 @@ class ToolFile(BaseModel):
         with open(self.OriginFullPath, 'r', encoding=encoding) as f:
             json_data = json.load(f, **kwargs)
             return json_data
-    def LoadAsCsv(self) -> pd.DataFrame:
+    def LoadAsCsv(self) -> "pandas.DataFrame":
+        try:
+            import pandas           as     pd
+        except ImportError as e:
+            ImportingThrow(e, "File", ["pandas"])
         with open(self.OriginFullPath, 'r') as f:
             return pd.read_csv(f)
-    def LoadAsXml(self) -> pd.DataFrame:
+    def LoadAsXml(self) -> "pandas.DataFrame":
+        try:
+            import pandas           as     pd
+        except ImportError as e:
+            ImportingThrow(e, "File", ["pandas"])
         with open(self.OriginFullPath, 'r') as f:
             return pd.read_xml(f)
-    def LoadAsDataframe(self) -> pd.DataFrame:
+    def LoadAsDataframe(self) -> "pandas.DataFrame":
+        try:
+            import pandas           as     pd
+        except ImportError as e:
+            ImportingThrow(e, "File", ["pandas"])
         with open(self.OriginFullPath, 'r') as f:
             return pd.read_csv(f)
-    def LoadAsExcel(self) -> pd.DataFrame:
+    def LoadAsExcel(self) -> "pandas.DataFrame":
+        try:
+            import pandas           as     pd
+        except ImportError as e:
+            ImportingThrow(e, "File", ["pandas"])
         with open(self.OriginFullPath, 'r') as f:
             return pd.read_excel(f)
     def LoadAsBinary(self) -> bytes:
@@ -211,17 +215,58 @@ class ToolFile(BaseModel):
          with open(self.OriginFullPath, 'r') as f:
             return f.read()
     def LoadAsWav(self):
+        try:
+            from pydub              import AudioSegment
+        except ImportError as e:
+            ImportingThrow(e, "File", ["pydub"])
         return AudioSegment.from_wav(self.OriginFullPath)
     def LoadAsAudio(self):
+        try:
+            from pydub              import AudioSegment
+        except ImportError as e:
+            ImportingThrow(e, "File", ["pydub"])
         return AudioSegment.from_file(self.OriginFullPath)
-    def LoadAsImage(self) -> ImageFile.ImageFile:
+    def LoadAsImage(self):
+        try:
+            from PIL                import Image
+        except ImportError as e:
+            ImportingThrow(e, "File", ["Pillow"])
         return Image.open(self.OriginFullPath)
-    def LoadAsDocx(self) -> DocumentObject:
+    def LoadAsDocx(self) -> "docx.document.Document":
+        '''
+        try:
+            from docx               import Document
+            from docx.document      import Document as DocumentObject
+        except ImportError as e:
+            ImportingThrow(e, "File", ["python-docx"])
+        '''
+        try:
+            from docx               import Document
+            from docx.document      import Document as DocumentObject
+        except ImportError as e:
+            ImportingThrow(e, "File", ["python-docx"])
         return Document(self.OriginFullPath)
     def LoadAsUnknown(self, suffix:str) -> Any:
         return self.LoadAsText()
-    def LoadAsModel(self, model:type[BaseModel]) -> BaseModel:
+    def LoadAsModel(self, model:type["BaseModel"]) -> "BaseModel":
         return model.model_validate(self.LoadAsJson())
+
+    def ReadLines(self):
+        with open(self.OriginFullPath, 'r') as f:
+            while True:
+                line = f.readline()
+                if not line or line == '':
+                    break
+                yield line
+
+    async def ReadLinesAsync(self):
+        import aiofiles
+        async with aiofiles.open(self.OriginFullPath, 'r') as f:
+            while True:
+                line = await f.readline()
+                if not line or line == '':
+                    break
+                yield line
 
     def SaveAsJson(self, json_data):
         try:
@@ -234,16 +279,40 @@ class ToolFile(BaseModel):
         with open(self.OriginFullPath, 'w', encoding='utf-8') as f:
             json.dump(json_data, f, indent=4)
         return self
-    def SaveAsCsv(self, csv_data:pd.DataFrame):
+    def SaveAsCsv(self, csv_data:"pandas.DataFrame"):
+        '''
+        try:
+            import pandas           as     pd
+        except ImportError as e:
+            ImportingThrow(e, "File", ["pandas"])
+        '''
         csv_data.to_csv(self.OriginFullPath)
         return self
-    def SaveAsXml(self, xml_data:pd.DataFrame):
+    def SaveAsXml(self, xml_data:"pandas.DataFrame"):
+        '''
+        try:
+            import pandas           as     pd
+        except ImportError as e:
+            ImportingThrow(e, "File", ["pandas"])
+        '''
         xml_data.to_xml(self.OriginFullPath)
         return self
-    def SaveAsDataframe(self, dataframe_data:pd.DataFrame):
+    def SaveAsDataframe(self, dataframe_data:"pandas.DataFrame"):
+        '''
+        try:
+            import pandas           as     pd
+        except ImportError as e:
+            ImportingThrow(e, "File", ["pandas"])
+        '''
         dataframe_data.to_csv(self.OriginFullPath)
         return self
-    def SaveAsExcel(self, excel_data:pd.DataFrame):
+    def SaveAsExcel(self, excel_data:"pandas.DataFrame"):
+        '''
+        try:
+            import pandas           as     pd
+        except ImportError as e:
+            ImportingThrow(e, "File", ["pandas"])
+        '''
         excel_data.to_excel(self.OriginFullPath, index=False)
         return self
     def SaveAsBinary(self, binary_data:bytes):
@@ -254,13 +323,32 @@ class ToolFile(BaseModel):
         with open(self.OriginFullPath, 'w') as f:
             f.writelines(text_data)
         return self
-    def SaveAsAudio(self, audio_data:AudioSegment):
+    def SaveAsAudio(self, audio_data:"pydub.AudioSegment"):
+        '''
+        try:
+            from pydub              import AudioSegment
+        except ImportError as e:
+            ImportingThrow(e, "File", ["pydub"])
+        '''
         audio_data.export(self.OriginFullPath, format=self.get_extension(self.OriginFullPath))
         return self
-    def SaveAsImage(self, image_data:ImageFile.ImageFile):
+    def SaveAsImage(self, image_data:"PIL.ImageFile.ImageFile"):
+        '''
+        try:
+            from PIL                import Image, ImageFile
+        except ImportError as e:
+            ImportingThrow(e, "File", ["Pillow"])
+        '''
         image_data.save(self.OriginFullPath)
         return self
-    def SaveAsDocx(self, docx_data:DocumentObject):
+    def SaveAsDocx(self, docx_data:"docx.document.Document"):
+        '''
+try:
+    from docx               import Document
+    from docx.document      import Document as DocumentObject
+except ImportError as e:
+    ImportingThrow(e, "File", ["python-docx"])
+        '''
         docx_data.save(self.OriginFullPath)
         return self
     def SaveAsUnknown(self, unknown_data:Any):

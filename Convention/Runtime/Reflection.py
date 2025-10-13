@@ -241,7 +241,7 @@ def ToType(
         type_module = module_name or (".".join(type_components[:-1]) if len(type_components) > 1 else None)
         type_final = type_components[-1]
         if GetInternalReflectionDebug():
-            print_colorful(ConsoleFrontColor.YELLOW, f"type_module: {type_module}, type_final: {type_final}, "\
+            PrintColorful(ConsoleFrontColor.YELLOW, f"type_module: {type_module}, type_final: {type_final}, "\
                 f"typen: {typen}, type_components: {type_components}")
         if type_module is not None:
             return sys.modules[type_module].__dict__[type_final]
@@ -304,7 +304,7 @@ def DecayType(
         return type_hint
 
     if GetInternalReflectionDebug():
-        print_colorful(ConsoleFrontColor.YELLOW, f"Decay: {type_hint}")
+        PrintColorful(ConsoleFrontColor.YELLOW, f"Decay: {type_hint}")
     
     result: type|List[type] = None 
 
@@ -333,7 +333,7 @@ def DecayType(
         raise ReflectionException(f"Invalid type: {type_hint}<{type_hint.__class__}>")
 
     if GetInternalReflectionDebug():
-        print_colorful(ConsoleFrontColor.YELLOW, f"Result: {result}")
+        PrintColorful(ConsoleFrontColor.YELLOW, f"Result: {result}")
     return result
 
 def IsJustDefinedInCurrentClass(member_name:str, current_class:type) -> bool:
@@ -456,7 +456,7 @@ class ValueInfo(BaseInfo):
         super().__init__(**kwargs)
         self._RealType = metaType
         if GetInternalReflectionDebug() and len(generic_args) > 0:
-            print_colorful(ConsoleFrontColor.YELLOW, f"Current ValueInfo Debug Frame: "\
+            PrintColorful(ConsoleFrontColor.YELLOW, f"Current ValueInfo Debug Frame: "\
                 f"metaType={metaType}, generic_args={generic_args}")
         self._GenericArgs = generic_args
         if not isinstance(metaType, type):
@@ -546,7 +546,7 @@ class ValueInfo(BaseInfo):
         **kwargs
         ) -> 'ValueInfo':
         if GetInternalReflectionDebug():
-            print_colorful(ConsoleFrontColor.BLUE, f"Current ValueInfo.Create Frame: "\
+            PrintColorful(ConsoleFrontColor.BLUE, f"Current ValueInfo.Create Frame: "\
                 f"metaType={metaType}, SelfType={SelfType}")
         if isinstance(metaType, type):
             if metaType is list:
@@ -601,7 +601,7 @@ class FieldInfo(MemberInfo):
         selfType:       type|Any|None = None
         ):
         if GetInternalReflectionDebug():
-            print_colorful(ConsoleFrontColor.LIGHTBLUE_EX, f"Current Make FieldInfo: {ctype}."\
+            PrintColorful(ConsoleFrontColor.LIGHTBLUE_EX, f"Current Make FieldInfo: {ctype}."\
                 f"{ConsoleFrontColor.RESET}{name} {ConsoleFrontColor.LIGHTBLUE_EX}{metaType} ")
         super().__init__(
             name = name,
@@ -611,7 +611,7 @@ class FieldInfo(MemberInfo):
             )
         self._MetaType = ValueInfo.Create(metaType, module_name=module_name, SelfType=selfType)
         if GetInternalReflectionDebug():
-            print_colorful(ConsoleFrontColor.LIGHTBLUE_EX, f"Current RealType: {self.FieldType}"\
+            PrintColorful(ConsoleFrontColor.LIGHTBLUE_EX, f"Current RealType: {self.FieldType}"\
                 f"{f'<{self.ValueType.GenericArgs}>' if self.ValueType.IsGeneric else ''}")
 
     @property
@@ -746,7 +746,7 @@ class MethodInfo(MemberInfo):
         is_class_method:        bool,
         ):
         if GetInternalReflectionDebug():
-            print_colorful(ConsoleFrontColor.YELLOW, f"Current Make MethodInfo: "\
+            PrintColorful(ConsoleFrontColor.YELLOW, f"Current Make MethodInfo: "\
                 f"{return_type} {ctype}.{name}({', '.join([p.ParameterName for p in parameters])})")
         MemberInfo.__init__(self, name, ctype, is_static, is_public)
         self._ReturnType = ValueInfo.Create(return_type, SelfType=self.ParentType)
@@ -1143,12 +1143,12 @@ class RefType(ValueInfo):
         def dfs(currentType:RefType) -> Dict[str, Dict[str, Any]|Any]:
             if currentType.IsPrimitive:
                 if GetInternalReflectionDebug():
-                    print_colorful(ConsoleFrontColor.RED, f"Current Tree DFS(IsPrimitive): "\
+                    PrintColorful(ConsoleFrontColor.RED, f"Current Tree DFS(IsPrimitive): "\
                         f"__type={currentType.RealType} __type.class={currentType.RealType.__class__}")
                 return f"{currentType.RealType}"
             elif currentType.RealType in type_set:
                 if GetInternalReflectionDebug():
-                    print_colorful(ConsoleFrontColor.RED, f"Current Tree DFS(Already): "\
+                    PrintColorful(ConsoleFrontColor.RED, f"Current Tree DFS(Already): "\
                         f"__type={currentType.RealType} __type.class={currentType.RealType.__class__}")
                 return {
                     "type": f"{currentType.RealType}",
@@ -1156,13 +1156,13 @@ class RefType(ValueInfo):
                 }
             else:
                 if GetInternalReflectionDebug():
-                    print_colorful(ConsoleFrontColor.RED, f"Current Tree DFS(New): "\
+                    PrintColorful(ConsoleFrontColor.RED, f"Current Tree DFS(New): "\
                         f"__type={currentType.RealType} __type.class={currentType.RealType.__class__}")
                 type_set.add(currentType.RealType)
                 value = {}
                 fields = currentType.GetFields()
                 if GetInternalReflectionDebug():
-                    print_colorful(ConsoleFrontColor.RED, f"Current Tree DFS(Fields): {[field.FieldName for field in fields]}")
+                    PrintColorful(ConsoleFrontColor.RED, f"Current Tree DFS(Fields): {[field.FieldName for field in fields]}")
                 for field in fields:
                     value[field.FieldName] = dfs(TypeManager.GetInstance().CreateOrGetRefType(field.FieldType))
                 return {
@@ -1429,7 +1429,7 @@ class TypeManager(BaseModel):
         if data is None:
             raise ReflectionException("data is None")
         if GetInternalReflectionDebug():
-            print_colorful(ConsoleFrontColor.YELLOW, f"Try Get RefType: {ConsoleFrontColor.RESET}{data}")
+            PrintColorful(ConsoleFrontColor.YELLOW, f"Try Get RefType: {ConsoleFrontColor.RESET}{data}")
 
         # 快速路径：如果是字符串并且在字符串缓存中，直接返回对应的类型
         if isinstance(data, str) and data in self._string_to_type_cache:
@@ -1454,7 +1454,7 @@ class TypeManager(BaseModel):
             # 添加到弱引用缓存
             self._weak_refs[type_id] = weakref.ref(ref_type)
             if GetInternalReflectionDebug():
-                print_colorful(ConsoleFrontColor.YELLOW, f"Get "\
+                PrintColorful(ConsoleFrontColor.YELLOW, f"Get "\
                     f"{ConsoleFrontColor.RESET}{metaType}{ConsoleFrontColor.YELLOW} RefType: "\
                     f"{ConsoleFrontColor.RESET}{ref_type.ToString()}")
             return ref_type
@@ -1507,7 +1507,7 @@ class TypeManager(BaseModel):
         try:
             ref_type = RefType(metaType)
             if GetInternalReflectionDebug():
-                print_colorful(ConsoleFrontColor.RED, f"Create "\
+                PrintColorful(ConsoleFrontColor.RED, f"Create "\
                     f"{ConsoleFrontColor.RESET}{metaType} "\
                     f"{ConsoleFrontColor.RED}RefType: {ConsoleFrontColor.RESET}{ref_type.ToString()}")
             self._RefTypes[metaType] = ref_type
