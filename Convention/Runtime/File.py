@@ -258,7 +258,6 @@ class ToolFile(BaseModel):
                 if not line or line == '':
                     break
                 yield line
-
     async def ReadLinesAsync(self):
         import aiofiles
         async with aiofiles.open(self.OriginFullPath, 'r') as f:
@@ -267,6 +266,51 @@ class ToolFile(BaseModel):
                 if not line or line == '':
                     break
                 yield line
+    def ReadBytes(self):
+        with open(self.OriginFullPath, 'rb') as f:
+            while True:
+                data = f.read(1024)
+                if not data or data == '':
+                    break
+                yield data
+    async def ReadBytesAsync(self):
+        import aiofiles
+        async with aiofiles.open(self.OriginFullPath, 'rb') as f:
+            while True:
+                data = await f.read(1024)
+                if not data or data == '':
+                    break
+                yield data
+
+    def WriteBytes(self, data:bytes):
+        with open(self.OriginFullPath, 'wb') as f:
+            f.write(data)
+    async def WriteBytesAsync(self, data:bytes):
+        import aiofiles
+        async with aiofiles.open(self.OriginFullPath, 'wb') as f:
+            await f.write(data)
+    def WriteLines(self, data:List[str]):
+        with open(self.OriginFullPath, 'w') as f:
+            f.writelines(data)
+    async def WriteLinesAsync(self, data:List[str]):
+        import aiofiles
+        async with aiofiles.open(self.OriginFullPath, 'w') as f:
+            await f.writelines(data)
+    
+    def AppendText(self, data:str):
+        with open(self.OriginFullPath, 'a') as f:
+            f.write(data)
+    async def AppendTextAsync(self, data:str):
+        import aiofiles
+        async with aiofiles.open(self.OriginFullPath, 'a') as f:
+            await f.write(data)
+    def AppendBytes(self, data:bytes):
+        with open(self.OriginFullPath, 'ab') as f:
+            f.write(data)
+    async def AppendBytesAsync(self, data:bytes):
+        import aiofiles
+        async with aiofiles.open(self.OriginFullPath, 'ab') as f:
+            await f.write(data)
 
     def SaveAsJson(self, json_data):
         try:
@@ -343,11 +387,11 @@ class ToolFile(BaseModel):
         return self
     def SaveAsDocx(self, docx_data:"docx.document.Document"):
         '''
-try:
-    from docx               import Document
-    from docx.document      import Document as DocumentObject
-except ImportError as e:
-    ImportingThrow(e, "File", ["python-docx"])
+        try:
+            from docx               import Document
+            from docx.document      import Document as DocumentObject
+        except ImportError as e:
+            ImportingThrow(e, "File", ["python-docx"])
         '''
         docx_data.save(self.OriginFullPath)
         return self
