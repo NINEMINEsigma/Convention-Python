@@ -62,7 +62,9 @@ class ToolFile(BaseModel):
         self,
         filePath:          Union[str, Self],
         ):
-        filePath = os.path.expandvars(str(filePath)).replace('\\','/')
+        filePath = os.path.expandvars(str(filePath))
+        if ":" in filePath:
+            filePath = os.path.abspath(filePath)
         super().__init__(OriginFullPath=filePath)
     def __del__(self):
         pass
@@ -75,19 +77,21 @@ class ToolFile(BaseModel):
 
     def __or__(self, other):
         if other is None:
-            return ToolFile(self.GetFullPath() if self.IsDir() else f"{self.GetFullPath()}\\")
+            return ToolFile(self.GetFullPath() if self.IsDir() else f"{self.GetFullPath()}{PlatformIndicator.GetFileSeparator()}")
         else:
             # 不使用os.path.join，因为os.path.join存在如下机制
             # 当参数路径中存在绝对路径风格时，会忽略前面的参数，例如：
             # os.path.join("E:/dev", "/analyze/") = "E:/analyze/"
             # 而我们需要的是 "E:/dev/analyze"
-            first = self.GetFullPath().replace('/','\\').strip('\\')
-            second = str(other).replace('/','\\')
+            separator = PlatformIndicator.GetFileSeparator()
+            separator_not_this_platform = PlatformIndicator.GetFileSeparator(True)
+            first = self.GetFullPath().replace(separator_not_this_platform,separator).strip(separator)
+            second = str(other).replace(separator_not_this_platform,separator)
             if first == "./":
                 return ToolFile(f"{second}") 
             elif first == "../":
                 first = ToolFile(f"{os.path.abspath(first)}").BackToParentDir()
-            return ToolFile(f"{first}\\{second}")
+            return ToolFile(f"{first}{separator}{second}")
     def __idiv__(self, other):
         temp = self.__or__(other)
         self.OriginFullPath = temp.GetFullPath()
@@ -109,16 +113,19 @@ class ToolFile(BaseModel):
         # 获取比较对象的路径
         other_path = other.GetFullPath() if isinstance(other, ToolFile) else str(other)
         self_path = self.OriginFullPath
-        
+
+        separator = PlatformIndicator.GetFileSeparator()
+        separator_not_this_platform = PlatformIndicator.GetFileSeparator(True)
+
         # 如果两个文件都存在，则直接比较路径
         if self.Exists() == True and other.Exists() == True:
-            return self_path.strip('\\/') == other_path.strip('\\/')
+            return self_path.strip(separator_not_this_platform) == other_path.strip(separator_not_this_platform)
         # 如果一个文件存在另一个不被判定为存在则一定不同
         elif self.Exists() != other.Exists():
             return False
         # 如果两个文件都不存在，则直接比较文件名在视正反斜杠相同的情况下比较路径字符串
         else:
-            return self_path.replace('/','\\') == other_path.replace('/','\\')
+            return self_path.replace(separator_not_this_platform,separator) == other_path.replace(separator_not_this_platform,separator)
 
     def ToPath(self):
         return Path(self.OriginFullPath)
@@ -168,7 +175,7 @@ class ToolFile(BaseModel):
         if self.Exists() is False:
             raise FileNotFoundError("file not found")
         newpath = str(newpath)
-        if '\\' in newpath or '/' in newpath:
+        if PlatformIndicator.GetFileSeparator() in newpath or PlatformIndicator.GetFileSeparator(True) in newpath:
             newpath = GetBaseFilename(newpath)
         new_current_path = os.path.join(self.GetDir(), newpath)
         os.rename(self.OriginFullPath, new_current_path)
@@ -179,28 +186,28 @@ class ToolFile(BaseModel):
         with open(self.OriginFullPath, 'r', encoding=encoding) as f:
             json_data = json.load(f, **kwargs)
             return json_data
-    def LoadAsCsv(self) -> "pandas.DataFrame":
+    def LoadAsCsv(self) -> "pd.DataFrame":
         try:
             import pandas           as     pd
         except ImportError as e:
             ImportingThrow(e, "File", ["pandas"])
         with open(self.OriginFullPath, 'r') as f:
             return pd.read_csv(f)
-    def LoadAsXml(self) -> "pandas.DataFrame":
+    def LoadAsXml(self) -> "pd.DataFrame":
         try:
             import pandas           as     pd
         except ImportError as e:
             ImportingThrow(e, "File", ["pandas"])
         with open(self.OriginFullPath, 'r') as f:
             return pd.read_xml(f)
-    def LoadAsDataframe(self) -> "pandas.DataFrame":
+    def LoadAsDataframe(self) -> "pd.DataFrame":
         try:
             import pandas           as     pd
         except ImportError as e:
             ImportingThrow(e, "File", ["pandas"])
         with open(self.OriginFullPath, 'r') as f:
             return pd.read_csv(f)
-    def LoadAsExcel(self) -> "pandas.DataFrame":
+    def LoadAsExcel(self) -> "pd.DataFrame":
         try:
             import pandas           as     pd
         except ImportError as e:
@@ -322,7 +329,7 @@ class ToolFile(BaseModel):
         with open(self.OriginFullPath, 'w', encoding='utf-8') as f:
             json.dump(json_data, f, indent=4)
         return self
-    def SaveAsCsv(self, csv_data:"pandas.DataFrame"):
+    def SaveAsCsv(self, csv_data:"pd.DataFrame"):
         '''
         try:
             import pandas           as     pd
@@ -331,7 +338,7 @@ class ToolFile(BaseModel):
         '''
         csv_data.to_csv(self.OriginFullPath)
         return self
-    def SaveAsXml(self, xml_data:"pandas.DataFrame"):
+    def SaveAsXml(self, xml_data:"pd.DataFrame"):
         '''
         try:
             import pandas           as     pd
@@ -340,7 +347,7 @@ class ToolFile(BaseModel):
         '''
         xml_data.to_xml(self.OriginFullPath)
         return self
-    def SaveAsDataframe(self, dataframe_data:"pandas.DataFrame"):
+    def SaveAsDataframe(self, dataframe_data:"pd.DataFrame"):
         '''
         try:
             import pandas           as     pd
@@ -349,7 +356,7 @@ class ToolFile(BaseModel):
         '''
         dataframe_data.to_csv(self.OriginFullPath)
         return self
-    def SaveAsExcel(self, excel_data:"pandas.DataFrame"):
+    def SaveAsExcel(self, excel_data:"pd.DataFrame"):
         '''
         try:
             import pandas           as     pd
@@ -366,7 +373,7 @@ class ToolFile(BaseModel):
         with open(self.OriginFullPath, 'w') as f:
             f.writelines(text_data)
         return self
-    def SaveAsAudio(self, audio_data:"pydub.AudioSegment"):
+    def SaveAsAudio(self, audio_data:"AudioSegment"):
         '''
         try:
             from pydub              import AudioSegment
@@ -375,7 +382,7 @@ class ToolFile(BaseModel):
         '''
         audio_data.export(self.OriginFullPath, format=self.get_extension(self.OriginFullPath))
         return self
-    def SaveAsImage(self, image_data:"PIL.ImageFile.ImageFile"):
+    def SaveAsImage(self, image_data:"ImageFile.ImageFile"):
         '''
         try:
             from PIL                import Image, ImageFile
@@ -384,7 +391,7 @@ class ToolFile(BaseModel):
         '''
         image_data.save(self.OriginFullPath)
         return self
-    def SaveAsDocx(self, docx_data:"docx.document.Document"):
+    def SaveAsDocx(self, docx_data:"DocumentObject"):
         '''
         try:
             from docx               import Document
@@ -418,7 +425,7 @@ class ToolFile(BaseModel):
         '''
         if is_without_extension and '.' in self.OriginFullPath:
             return GetBaseFilename(self.OriginFullPath)[:-(len(self.GetExtension())+1)]
-        elif self.OriginFullPath[-1] == '/' or self.OriginFullPath[-1] == '\\':
+        elif self.OriginFullPath[-1] == PlatformIndicator.GetFileSeparator() or self.OriginFullPath[-1] == PlatformIndicator.GetFileSeparator(True):
             return GetBaseFilename(self.OriginFullPath[:-1])
         else:
             return GetBaseFilename(self.OriginFullPath)
@@ -430,7 +437,7 @@ class ToolFile(BaseModel):
         return os.path.dirname(self.OriginFullPath)
 
     def IsDir(self):
-        if self.OriginFullPath[-1] == '\\' or self.GetFullPath()[-1] == '/':
+        if self.OriginFullPath[-1] == PlatformIndicator.GetFileSeparator() or self.GetFullPath()[-1] == PlatformIndicator.GetFileSeparator(True):
             return True
         else:
             return os.path.isdir(self.OriginFullPath)
@@ -779,8 +786,11 @@ class ToolFile(BaseModel):
             ignore_directories: 是否忽略目录事件
             case_sensitive: 是否区分大小写
         """
-        from watchdog.observers import Observer
-        from watchdog.events   import FileSystemEventHandler
+        try:
+            from watchdog.observers import Observer
+            from watchdog.events   import FileSystemEventHandler
+        except ImportError as e:
+            ImportingThrow(e, "File", ["watchdog"])
         if not self.Exists():
             raise FileNotFoundError(f"File not found: {self.GetFullPath()}")
 
