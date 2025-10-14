@@ -1,3 +1,4 @@
+import os.path
 from .Config            import *
 import                         json
 import                         shutil
@@ -61,9 +62,7 @@ class ToolFile(BaseModel):
         self,
         filePath:          Union[str, Self],
         ):
-        filePath = os.path.expandvars(str(filePath))
-        if filePath[1:].startswith(":/") or filePath[1:].startswith(":\\"):
-            filePath = os.path.abspath(filePath)
+        filePath = os.path.expandvars(str(filePath)).replace('\\','/')
         super().__init__(OriginFullPath=filePath)
     def __del__(self):
         pass
@@ -408,6 +407,8 @@ class ToolFile(BaseModel):
         return os.path.getsize(self.OriginFullPath)
     def GetExtension(self):
         return GetExtensionName(self.OriginFullPath)
+    def GetAbsPath(self) -> str:
+        return os.path.abspath(self.OriginFullPath)
     def GetFullPath(self) -> str:
         return self.OriginFullPath
     def GetFilename(self, is_without_extension = False):
