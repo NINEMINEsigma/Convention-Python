@@ -329,6 +329,12 @@ class PlatformIndicator:
     ProductName         : str   = "DefaultProject"
     
     @staticmethod
+    def GetFileSeparator(is_not_this_platform:bool = False) -> str:
+        if PlatformIndicator.IsPlatformWindows and not is_not_this_platform:
+            return "\\"
+        return "/"
+
+    @staticmethod
     def GetApplicationPath() -> str:
         """获取应用程序所在目录"""
         import os
