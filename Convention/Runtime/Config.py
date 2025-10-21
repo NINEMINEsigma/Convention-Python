@@ -110,6 +110,26 @@ class ConsoleStyleClass(AnsiCodes):
 
 ConsoleStyle = ConsoleStyleClass()
 
+def PrintColorful(color:str, *args, is_reset:bool=True, **kwargs):
+    with lock_guard():
+        if is_reset:
+            print(color,*args,ConsoleStyle.RESET_ALL, **kwargs)
+        else:
+            print(color,*args, **kwargs)
+
+def PrintAsError(message:str):
+    PrintColorful(ConsoleFrontColor.RED, message)
+def PrintAsWarning(message:str):
+    PrintColorful(ConsoleFrontColor.YELLOW, message)
+def PrintAsInfo(message:str):
+    PrintColorful(ConsoleFrontColor.GREEN, message)
+def PrintAsDebug(message:str):
+    PrintColorful(ConsoleFrontColor.BLUE, message)
+def PrintAsSuccess(message:str):
+    PrintColorful(ConsoleFrontColor.GREEN, message)
+def PrintAsLight(message:str):
+    PrintColorful(ConsoleFrontColor.LIGHTMAGENTA_EX, message)
+
 # endregion
 
 class NotImplementedError(Exception):
@@ -136,13 +156,6 @@ def SetInternalDebug(mode:bool):
 def GetInternalDebug() -> bool:
     global INTERNAL_DEBUG
     return INTERNAL_DEBUG
-
-def PrintColorful(color:str, *args, is_reset:bool=True, **kwargs):
-    with lock_guard():
-        if is_reset:
-            print(color,*args,ConsoleStyle.RESET_ALL, **kwargs)
-        else:
-            print(color,*args, **kwargs)
 
 ImportingFailedSet:Set[str] = set()
 def ImportingThrow(
