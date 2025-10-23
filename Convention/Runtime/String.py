@@ -52,7 +52,10 @@ def word_segmentation(
     except ImportError:
         raise ValueError("jieba is not install")
 
-def GetEditorDistanceAndOperations(s1:str, s2:str) -> Tuple[int, List[Tuple[str, int, int, str]]]:
+def GetEditorDistanceAndOperations(
+    s1:str, 
+    s2:str, 
+    ) -> Tuple[int, List[Tuple[Literal["add","delete"], int, int, str]]]:
     """
     计算两个字符串的编辑距离和操作序列
     操作格式: (操作类型, 开始位置, 结束位置, 内容)
@@ -112,3 +115,14 @@ def GetEditorDistanceAndOperations(s1:str, s2:str) -> Tuple[int, List[Tuple[str,
     edit_distance = m + n - 2 * lcs[m][n]
     return edit_distance, merged_operations
 
+def GetDiffOperations(
+    s1:str, 
+    s2:str, 
+    ) -> List[Tuple[Literal["add","delete"], int, int, str]]:
+    """
+    计算两个字符串的差异操作序列
+    操作格式: (操作类型, 开始位置, 结束位置, 内容)
+    位置基于源字符串s1
+    """
+    
+    return operations

@@ -218,7 +218,7 @@ class ToolFile(BaseModel):
         with open(self.OriginFullPath, 'rb') as f:
             return f.read()
     def LoadAsText(self) -> str:
-         with open(self.OriginFullPath, 'r') as f:
+         with open(self.OriginFullPath, 'r', encoding='utf-8') as f:
             return f.read()
     def LoadAsWav(self):
         try:
@@ -370,8 +370,8 @@ class ToolFile(BaseModel):
             f.write(binary_data)
         return self
     def SaveAsText(self, text_data:str):
-        with open(self.OriginFullPath, 'w') as f:
-            f.writelines(text_data)
+        with open(self.OriginFullPath, 'w', encoding='utf-8') as f:
+            f.write(text_data)
         return self
     def SaveAsAudio(self, audio_data:"AudioSegment"):
         '''
