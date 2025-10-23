@@ -51,3 +51,64 @@ def word_segmentation(
         return jieba.dt.cut(str(sentence), cut_all=cut_all, HMM=HMM, use_paddle=use_paddle)
     except ImportError:
         raise ValueError("jieba is not install")
+
+def GetEditorDistanceAndOperations(s1:str, s2:str) -> Tuple[int, List[Tuple[str, int, int, str]]]:
+    """
+    计算两个字符串的编辑距离和操作序列
+    操作格式: (操作类型, 开始位置, 结束位置, 内容)
+    位置基于源字符串s1
+    """
+    m, n = len(s1), len(s2)
+    
+    # 使用简单的LCS算法来找到最长公共子序列
+    # 然后基于LCS生成操作序列
+    lcs = [[0] * (n + 1) for _ in range(m + 1)]
+    
+    # 构建LCS表
+    for i in range(1, m + 1):
+        for j in range(1, n + 1):
+            if s1[i - 1] == s2[j - 1]:
+                lcs[i][j] = lcs[i - 1][j - 1] + 1
+            else:
+                lcs[i][j] = max(lcs[i - 1][j], lcs[i][j - 1])
+    
+    # 基于LCS生成操作序列
+    operations = []
+    i, j = m, n
+    
+    while i > 0 or j > 0:
+        if i > 0 and j > 0 and s1[i - 1] == s2[j - 1]:
+            # 字符匹配，不需要操作
+            i -= 1
+            j -= 1
+        elif j > 0 and (i == 0 or lcs[i][j - 1] >= lcs[i - 1][j]):
+            # 需要插入s2[j-1]
+            # 找到插入位置（在s1中的位置）
+            insert_pos = i
+            operations.insert(0, ("add", insert_pos, insert_pos, s2[j - 1]))
+            j -= 1
+        else:
+            # 需要删除s1[i-1]
+            operations.insert(0, ("delete", i - 1, i, s1[i - 1]))
+            i -= 1
+    
+    # 合并连续的操作
+    merged_operations = []
+    for op in operations:
+        if merged_operations and merged_operations[-1][0] == op[0]:
+            last_op = merged_operations[-1]
+            if op[0] == "add" and last_op[2] == op[1]:
+                # 合并连续的添加操作
+                merged_operations[-1] = (op[0], last_op[1], op[2], last_op[3] + op[3])
+            elif op[0] == "delete" and last_op[2] == op[1]:
+                # 合并连续的删除操作
+                merged_operations[-1] = (op[0], last_op[1], op[2], last_op[3] + op[3])
+            else:
+                merged_operations.append(op)
+        else:
+            merged_operations.append(op)
+    
+    # 计算编辑距离
+    edit_distance = m + n - 2 * lcs[m][n]
+    return edit_distance, merged_operations
+
