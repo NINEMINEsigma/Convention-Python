@@ -264,6 +264,78 @@ class ToolURL(BaseModel):
             callback(None)
             return False
     
+    def PostJson(self, callback: Callable[[Optional[Any]], None], 
+                 json_data: Optional[Dict[str, Any]] = None, 
+                 headers: Optional[Dict[str, str]] = None) -> bool:
+        """
+        同步JSON POST请求
+        
+        Args:
+            callback: 响应回调函数，成功时接收响应对象，失败时接收None
+            json_data: JSON数据字典
+            headers: 自定义请求头字典
+            
+        Returns:
+            是否请求成功
+        """
+        if not self.IsValid:
+            callback(None)
+            return False
+        
+        try:
+            data = None
+            if json_data:
+                data = json.dumps(json_data).encode('utf-8')
+            
+            req = urllib.request.Request(self.url, data=data, method='POST')
+            
+            # 设置默认请求头
+            req.add_header('Content-Type', 'application/json')
+            
+            # 添加自定义请求头
+            if headers:
+                for key, value in headers.items():
+                    req.add_header(key, value)
+            
+            with urllib.request.urlopen(req) as response:
+                callback(response)
+                return True
+        except Exception as e:
+            callback(None)
+            return False
+    
+    async def PostJsonAsync(self, callback: Callable[[Optional[Any]], None],
+                            json_data: Optional[Dict[str, Any]] = None,
+                            headers: Optional[Dict[str, str]] = None) -> bool:
+        """
+        异步JSON POST请求
+        
+        Args:
+            callback: 响应回调函数，成功时接收响应对象，失败时接收None
+            json_data: JSON数据字典
+            headers: 自定义请求头字典
+            
+        Returns:
+            是否请求成功
+        """
+        if not self.IsValid:
+            callback(None)
+            return False
+        
+        try:
+            # 准备请求头
+            request_headers = {'Content-Type': 'application/json'}
+            if headers:
+                request_headers.update(headers)
+            
+            async with aiohttp.ClientSession() as session:
+                async with session.post(self.url, json=json_data, headers=request_headers) as response:
+                    callback(response)
+                    return True
+        except Exception as e:
+            callback(None)
+            return False
+    
     # 内容加载方法
     def LoadAsText(self) -> str:
         """
