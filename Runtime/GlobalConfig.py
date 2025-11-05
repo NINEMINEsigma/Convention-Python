@@ -228,7 +228,7 @@ class GlobalConfig:
         return self
     
     # 配置查找
-    def FindItem(self, key: str, default: Any = None) -> Any:
+    def FindItem[T](self, key: str, default: Optional[T] = None) -> Optional[T]:
         """查找配置项，支持默认值"""
         if key in self._data_pair:
             return self._data_pair[key]
