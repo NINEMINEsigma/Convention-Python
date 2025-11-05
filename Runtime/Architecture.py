@@ -10,7 +10,7 @@ class IModel(ABC):
     pass
 
 
-class IDataModel(ABC, IModel):
+class IDataModel(IModel):
     @abstractmethod
     def Save(self) -> str:
         pass
