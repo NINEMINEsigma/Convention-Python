@@ -131,8 +131,9 @@ class Architecture:
         if slot in cls._RegisteringRuntime:
             raise InvalidOperationError("Illegal duplicate registrations")
         cls._RegisteringRuntime[slot] = Architecture.Registering(slot, target, DependenceModel(Architecture.TypeQuery(dependence) for dependence in dependences), action)
+        dependences = cls._RegisteringRuntime[slot].dependences
         cls._InternalRegisteringComplete()
-        return cls._RegisteringRuntime[slot].dependences
+        return dependences
 
     @classmethod
     def Contains(cls, type_:type) -> bool:
