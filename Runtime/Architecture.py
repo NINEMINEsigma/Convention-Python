@@ -140,7 +140,7 @@ class Architecture:
         return type_ in cls._RegisteredObjects
 
     @classmethod
-    def Get(cls, type_:type) -> Any:
+    def Get[T](cls, type_:Typen[T]) -> T:
         return cls._RegisteredObjects[type_]
 
     @classmethod
