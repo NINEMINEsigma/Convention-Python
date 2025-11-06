@@ -504,12 +504,11 @@ class ToolFile(BaseModel):
         return result
     def DirWalk(
         self,
-        top,
         topdown:        bool               = True,
         onerror:        Optional[Callable] = None,
         followlinks:    bool               = False
         ) -> Iterator[tuple[dir_name_type, list[dir_name_type], list[file_name_type]]]:
-        return os.walk(self.OriginFullPath, top=top, topdown=topdown, onerror=onerror, followlinks=followlinks)
+        return os.walk(self.OriginFullPath, topdown=topdown, onerror=onerror, followlinks=followlinks)
 
 
     def bool(self):
