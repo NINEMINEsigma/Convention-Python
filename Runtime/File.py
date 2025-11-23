@@ -327,7 +327,7 @@ class ToolFile(BaseModel):
         except:
             pass
         with open(self.OriginFullPath, 'w', encoding='utf-8') as f:
-            json.dump(json_data, f, indent=4)
+            json.dump(json_data, f, indent=4, ensure_ascii=False)
         return self
     def SaveAsCsv(self, csv_data:"pd.DataFrame"):
         '''
